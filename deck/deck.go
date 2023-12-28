@@ -9,11 +9,11 @@ import (
 	"math/rand"
 )
 
-func newDeck(ranks map[string]int) *Deck {
+func newDeck(suits []string, ranks map[string]int) *Deck {
 	deck := &Deck{}
 	cards := []*card.Card{}
 
-	for cardSuit := range suit.Suits {
+	for _, cardSuit := range suits {
 		for cardRank, cardValue := range ranks {
 			card, error := card.NewCard(cardSuit, cardRank, cardValue)
 			if error != nil {
@@ -28,11 +28,11 @@ func newDeck(ranks map[string]int) *Deck {
 }
 
 func NewDefaultDeck() *Deck {
-	return newDeck(rank.Ranks)
+	return newDeck([]string{suit.Hearts, suit.Clubs, suit.Diamonds, suit.Spades}, rank.Ranks)
 }
 
-func NewCustomDeck(ranks map[string]int) *Deck {
-	return newDeck(ranks)
+func NewCustomDeck(suits []string, ranks map[string]int) *Deck {
+	return newDeck(suits, ranks)
 }
 
 // ************* Deck type ***************
@@ -76,14 +76,12 @@ func (d *Deck) Shuffle(count int) {
 	}
 }
 
-func (d *Deck) AddDeck(deckToAdd *Deck) {
-	d.Cards = append(d.Cards, deckToAdd.Cards...)
+// Add a list of cards to this deck's cards
+func (d *Deck) AddCards(cards []*card.Card) {
+	d.Cards = append(d.Cards, cards...)
 }
 
-func (d *Deck) AddCard(cardToAdd *card.Card) {
-	d.Cards = append(d.Cards, cardToAdd)
-}
-
+// Print and format a list of cards
 func PrintCards(cards []*card.Card) string {
 	var out bytes.Buffer
 
@@ -94,4 +92,23 @@ func PrintCards(cards []*card.Card) string {
 	out.WriteString("}\n")
 
 	return out.String()
+}
+
+func (d *Deck) Pop(count int) (popped []*card.Card) {
+	if count == 0 {
+		count = 1
+	}
+
+	if len(d.Cards) == 0 || count-1 > len(d.Cards) {
+		return nil
+	}
+
+	// get slice of cards from beginning to count inclusive
+	// and copy the contents to a new slice so as not to hold
+	// onto the memory of the original for potential memory leak
+	copy(popped, d.Cards[:count-1])
+	// re-slice the original array to start after the popped
+	d.Cards = d.Cards[count-1:]
+
+	return
 }

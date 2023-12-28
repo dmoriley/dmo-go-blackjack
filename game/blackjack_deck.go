@@ -1,4 +1,4 @@
-package engine
+package game
 
 import (
 	"blackjack/card/rank"
@@ -28,7 +28,7 @@ func NewBlackjackDeck(numberOfDecks int) *BlackjackDeck {
 	}
 
 	for i := 0; i < numberOfDecks; i++ {
-		bjDeck.AddDeck(deckToAdd)
+		bjDeck.AddCards(deckToAdd.Cards)
 		bjDeck.DeckCount++
 	}
 
@@ -49,3 +49,8 @@ func (d *BlackjackDeck) Inspect() string {
 
 	return out.String()
 }
+
+// TODO: alter blackjackdeck so that it always maintains slice of original
+// another slice for the deck that is going to shrink after cards of taken
+// and then every card 'delt' is also a slice, but they point to the second slice
+// then when a reshuffle happens cause cards are depleted

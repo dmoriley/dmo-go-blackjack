@@ -1,4 +1,4 @@
-package engine
+package game
 
 const (
 	One         Denomination = "One"

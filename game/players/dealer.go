@@ -1,4 +1,4 @@
-package engine
+package players
 
 import "blackjack/card"
 
