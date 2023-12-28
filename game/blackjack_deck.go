@@ -41,9 +41,19 @@ func (d *BlackjackDeck) Inspect() string {
 	out.WriteString(fmt.Sprintf("*** Deck of %d cards ***\n", d.GetLength()))
 	out.WriteString(fmt.Sprintf("Deck count: %d\n", d.DeckCount))
 	out.WriteString(fmt.Sprintf("Shuffle count: %d\n", d.ShuffleCount))
+
+	return out.String()
+}
+
+func (d *BlackjackDeck) Debug() string {
+	var out bytes.Buffer
+
+	out.WriteString(fmt.Sprintf("*** Deck of %d cards ***\n", d.GetLength()))
+	out.WriteString(fmt.Sprintf("Deck count: %d\n", d.DeckCount))
+	out.WriteString(fmt.Sprintf("Shuffle count: %d\n", d.ShuffleCount))
 	out.WriteString("{\n")
 	for _, card := range d.Cards {
-		out.WriteString(fmt.Sprintf("\t%s\n", card.Inspect()))
+		out.WriteString(fmt.Sprintf("\t%s\n", card.Debug()))
 	}
 	out.WriteString("}\n")
 

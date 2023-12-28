@@ -1,7 +1,10 @@
 package players
 
+import "blackjack/card"
+
 type Player struct {
-	Name string
-	Cash int
-	Bet  int
+	Cards []*card.Card
+	Name  string
+	Cash  int
+	Bet   int
 }

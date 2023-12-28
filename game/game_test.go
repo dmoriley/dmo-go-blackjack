@@ -190,7 +190,12 @@ func TestCombiningAllCards(t *testing.T) {
 	want = 10 + 6 + 1 // 17
 	got = GetCardsTotal(cards)
 	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d\n%s", want, got, deck.PrintCards(cards))
+		t.Errorf(
+			"Card total wrong. Want = %d, got = %d\n%s",
+			want,
+			got,
+			deck.PrintCards(cards, true),
+		)
 
 	}
 
@@ -201,7 +206,12 @@ func TestCombiningAllCards(t *testing.T) {
 	want = 2 + 3 + 5 + 10 + 1 // 21
 	got = GetCardsTotal(cards)
 	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d\n%s", want, got, deck.PrintCards(cards))
+		t.Errorf(
+			"Card total wrong. Want = %d, got = %d\n%s",
+			want,
+			got,
+			deck.PrintCards(cards, true),
+		)
 
 	}
 
@@ -212,7 +222,12 @@ func TestCombiningAllCards(t *testing.T) {
 	want = 10 + 10 + 1
 	got = GetCardsTotal(cards)
 	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d\n%s", want, got, deck.PrintCards(cards))
+		t.Errorf(
+			"Card total wrong. Want = %d, got = %d\n%s",
+			want,
+			got,
+			deck.PrintCards(cards, true),
+		)
 
 	}
 }

@@ -1,10 +1,10 @@
 package card
 
 import (
-	"bytes"
-	"fmt"
 	"blackjack/card/rank"
 	"blackjack/card/suit"
+	"bytes"
+	"fmt"
 )
 
 func NewCard(suitInput string, rankNameInput string, cardValue int) (*Card, error) {
@@ -35,13 +35,31 @@ type Card struct {
 	IsFaceUp bool
 }
 
-func (c *Card) Inspect() string {
+func (c *Card) Debug() string {
 	var out bytes.Buffer
 
 	out.WriteString("{")
 	out.WriteString(fmt.Sprintf("%s of %s", c.Rank.Name, c.Suit))
 	out.WriteString(fmt.Sprintf(", value: %d", c.Rank.Value))
+	out.WriteString(fmt.Sprintf(", IsFaceUp: %t", c.IsFaceUp))
 	out.WriteString("}")
+
+	return out.String()
+}
+
+func (c *Card) Inspect() string {
+	var out bytes.Buffer
+
+	if c.IsFaceUp {
+		out.WriteString("{")
+		out.WriteString(fmt.Sprintf("%s of %s", c.Rank.Name, c.Suit))
+		out.WriteString(fmt.Sprintf(", value: %d", c.Rank.Value))
+		out.WriteString("}")
+	} else {
+		out.WriteString("{")
+		out.WriteString("Face down")
+		out.WriteString("}")
+	}
 
 	return out.String()
 }
