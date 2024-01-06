@@ -5,6 +5,7 @@ import (
 	"blackjack/card/rank"
 	"blackjack/deck"
 	"blackjack/game/players"
+	"blackjack/game/utils"
 	"bufio"
 	"bytes"
 	"fmt"
@@ -83,6 +84,10 @@ func GetCardsTotal(cards []*card.Card) int {
 	aceCount := 0
 
 	for _, card := range cards {
+		if !card.IsFaceUp {
+			// dont total cards that arent being shown
+			continue
+		}
 		switch card.Rank.Name {
 		case rank.Ace:
 			aceCount++
@@ -168,19 +173,27 @@ func PrintTableCards(bj *Blackjack) string {
 	var out bytes.Buffer
 
 	out.WriteString("\n")
-	fillTextAndPad(&out, 45, '*', '*', "", "")
-	fillTextAndPad(&out, 45, '*', '*', "Table Cards", "middle")
-	fillTextAndPad(&out, 45, '*', '*', "", "")
-	fillTextAndPad(&out, 45, ' ', '*', "", "")
-	fillTextAndPad(&out, 45, ' ', '*', "Dealers cards", "left")
-	fillTextAndPad(&out, 45, ' ', '*', "-------------", "left")
-	fillTextAndPad(&out, 45, ' ', '*', "", "")
+	utils.FillTextAndPad(&out, 45, '*', '*', "", "")
+	utils.FillTextAndPad(&out, 45, '*', '*', "Table Cards", "middle")
+	utils.FillTextAndPad(&out, 45, '*', '*', "", "")
+	utils.FillTextAndPad(&out, 45, ' ', '*', "", "")
+	utils.FillTextAndPad(&out, 45, ' ', '*', "Dealers cards", "left")
+	utils.FillTextAndPad(
+		&out,
+		45,
+		' ',
+		'*',
+		fmt.Sprintf("Total: %d", GetCardsTotal(bj.Dealer.Cards)),
+		"left",
+	)
+	utils.FillTextAndPad(&out, 45, ' ', '*', "-------------", "left")
+	utils.FillTextAndPad(&out, 45, ' ', '*', "", "")
 	out.WriteString(deck.PrettyPrintCards(bj.Dealer.Cards))
-	fillTextAndPad(&out, 45, ' ', '*', "", "")
+	utils.FillTextAndPad(&out, 45, ' ', '*', "", "")
 
 	// player name and card total
-	fillTextAndPad(&out, 45, ' ', '*', fmt.Sprintf("%s cards", bj.Player.Name), "left")
-	fillTextAndPad(
+	utils.FillTextAndPad(&out, 45, ' ', '*', fmt.Sprintf("%s cards", bj.Player.Name), "left")
+	utils.FillTextAndPad(
 		&out,
 		45,
 		' ',
@@ -189,64 +202,12 @@ func PrintTableCards(bj *Blackjack) string {
 		"left",
 	)
 
-	fillTextAndPad(&out, 45, ' ', '*', "-------------", "left")
-	fillTextAndPad(&out, 45, ' ', '*', "", "")
+	utils.FillTextAndPad(&out, 45, ' ', '*', "-------------", "left")
+	utils.FillTextAndPad(&out, 45, ' ', '*', "", "")
 	out.WriteString(deck.PrettyPrintCards(bj.Player.Cards))
-	fillTextAndPad(&out, 45, ' ', '*', "", "")
-	fillTextAndPad(&out, 45, '*', '*', "", "")
-	fillTextAndPad(&out, 45, '*', '*', "", "")
+	utils.FillTextAndPad(&out, 45, ' ', '*', "", "")
+	utils.FillTextAndPad(&out, 45, '*', '*', "", "")
+	utils.FillTextAndPad(&out, 45, '*', '*', "", "")
 
 	return out.String()
-}
-
-func fillTextAndPad(
-	buffer *bytes.Buffer,
-	length int,
-	fillerChar byte,
-	borderChar byte,
-	insertText string,
-	alignment string,
-) {
-	if len(insertText) != 0 {
-		insertText = fmt.Sprintf(" %s ", insertText)
-	}
-	fillerLength := length - len(insertText) - 2 // minus 2 for the border chars
-	strFillerChar := string(fillerChar)
-	strBorderChar := string(borderChar)
-
-	// start border char
-	buffer.WriteString(strBorderChar)
-	switch alignment {
-	case "left":
-		buffer.WriteString(insertText)
-		for i := 0; i < fillerLength; i++ {
-			buffer.WriteString(strFillerChar)
-		}
-
-	case "middle", "": // default to middle when alignment is blank
-		halfLength := fillerLength / 2
-
-		for i := 0; i < halfLength; i++ {
-			buffer.WriteString(strFillerChar)
-		}
-		buffer.WriteString(insertText)
-
-		if halfLength*2 != fillerLength {
-			// need to increment for the 1 lost on odd number division
-			halfLength++
-		}
-
-		for i := 0; i < halfLength; i++ {
-			buffer.WriteString(strFillerChar)
-		}
-	case "right":
-		for i := 0; i < fillerLength; i++ {
-			buffer.WriteString(strFillerChar)
-		}
-		buffer.WriteString(insertText)
-	}
-
-	// end border char added
-	buffer.WriteString(strBorderChar)
-	buffer.WriteString("\n")
 }
