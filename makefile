@@ -1,4 +1,4 @@
-.PHONY: all run test testengine
+.PHONY: all run test testgame testdeck
 
 all: run
 
@@ -9,5 +9,8 @@ run:
 test:
 	go test ./...
 
-testengine:
-	go test ./engine/...
+testgame:
+	go test ./game/...
+
+testdeck:
+	go test ./deck/...

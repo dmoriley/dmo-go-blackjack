@@ -17,7 +17,7 @@ func NewBlackjackDeck(numberOfDecks int) *BlackjackDeck {
 		DeckCount: 0,
 	}
 
-	deckToAdd := deck.NewDefaultDeck()
+	deckToAdd := deck.NewDeck()
 
 	// change all the kings, queens and jacks to value of 10
 	for _, card := range deckToAdd.Cards {

@@ -9,8 +9,13 @@ import (
 	"math/rand"
 )
 
+type Deck struct {
+	Cards        []*card.Card
+	ShuffleCount int
+}
+
 func newDeck(suits []string, ranks map[string]int) *Deck {
-	deck := &Deck{}
+	Deck := &Deck{}
 	cards := []*card.Card{}
 
 	for _, cardSuit := range suits {
@@ -23,23 +28,43 @@ func newDeck(suits []string, ranks map[string]int) *Deck {
 			cards = append(cards, card)
 		}
 	}
-	deck.Cards = cards
-	return deck
+	Deck.Cards = cards
+	return Deck
 }
 
-func NewDefaultDeck() *Deck {
-	return newDeck([]string{suit.Hearts, suit.Clubs, suit.Diamonds, suit.Spades}, rank.Ranks)
+type Opts struct {
+	suits []string
+	ranks map[string]int
 }
 
-func NewCustomDeck(suits []string, ranks map[string]int) *Deck {
-	return newDeck(suits, ranks)
+type OptsFunc func(*Opts)
+
+func defaultOps() Opts {
+	return Opts{
+		suits: []string{suit.Hearts, suit.Clubs, suit.Diamonds, suit.Spades},
+		ranks: rank.Ranks,
+	}
 }
 
-// ************* Deck type ***************
+func WithSuits(suits []string) OptsFunc {
+	return func(opts *Opts) {
+		opts.suits = suits
+	}
+}
 
-type Deck struct {
-	Cards        []*card.Card
-	ShuffleCount int
+func WithRanks(ranks map[string]int) OptsFunc {
+	return func(opts *Opts) {
+		opts.ranks = ranks
+	}
+}
+
+func NewDeck(opts ...OptsFunc) *Deck {
+	o := defaultOps()
+
+	for _, fn := range opts {
+		fn(&o)
+	}
+	return newDeck(o.suits, o.ranks)
 }
 
 func (d *Deck) GetLength() int {
