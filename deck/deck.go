@@ -58,7 +58,11 @@ func WithRanks(ranks map[string]int) OptsFunc {
 	}
 }
 
+// Create a new Deck. Defaults to a regular 52 card deck. Optionally
+// set custom suits or ranks using the WithSuits or WithRanks optional function
+// parameters
 func NewDeck(opts ...OptsFunc) *Deck {
+	// optional method parameters using the "functional options" pattern
 	o := defaultOps()
 
 	for _, fn := range opts {
