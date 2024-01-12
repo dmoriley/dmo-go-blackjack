@@ -9,9 +9,9 @@ import (
 )
 
 func TestTenCards(t *testing.T) {
-	jack, _ := card.NewCard(suit.Hearts, rank.Jack, 10)
-	queen, _ := card.NewCard(suit.Spades, rank.Queen, 10)
-	king, _ := card.NewCard(suit.Diamonds, rank.King, 10)
+	jack, _ := card.NewCard(suit.Hearts, rank.Jack, 10, true)
+	queen, _ := card.NewCard(suit.Spades, rank.Queen, 10, true)
+	king, _ := card.NewCard(suit.Diamonds, rank.King, 10, true)
 
 	cards := []*card.Card{
 		jack,
@@ -43,14 +43,14 @@ func TestTenCards(t *testing.T) {
 
 func TestNumberCards(t *testing.T) {
 	cards := []*card.Card{}
-	two, _ := card.NewCard(suit.Hearts, rank.Two, 2)
-	three, _ := card.NewCard(suit.Hearts, rank.Three, 3)
-	four, _ := card.NewCard(suit.Hearts, rank.Four, 4)
-	five, _ := card.NewCard(suit.Hearts, rank.Five, 5)
-	six, _ := card.NewCard(suit.Hearts, rank.Six, 6)
-	seven, _ := card.NewCard(suit.Hearts, rank.Seven, 7)
-	eight, _ := card.NewCard(suit.Hearts, rank.Eight, 8)
-	nine, _ := card.NewCard(suit.Hearts, rank.Nine, 9)
+	two, _ := card.NewCard(suit.Hearts, rank.Two, 2, true)
+	three, _ := card.NewCard(suit.Hearts, rank.Three, 3, true)
+	four, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
+	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
+	six, _ := card.NewCard(suit.Hearts, rank.Six, 6, true)
+	seven, _ := card.NewCard(suit.Hearts, rank.Seven, 7, true)
+	eight, _ := card.NewCard(suit.Hearts, rank.Eight, 8, true)
+	nine, _ := card.NewCard(suit.Hearts, rank.Nine, 9, true)
 
 	cards = append(cards, two)
 	want := 2
@@ -110,7 +110,7 @@ func TestNumberCards(t *testing.T) {
 }
 
 func TestAceCard(t *testing.T) {
-	ace, _ := card.NewCard(suit.Hearts, rank.Ace, 1)
+	ace, _ := card.NewCard(suit.Hearts, rank.Ace, 1, true)
 	cards := []*card.Card{
 		ace,
 	}
@@ -152,18 +152,18 @@ func TestAceCard(t *testing.T) {
 
 func TestCombiningAllCards(t *testing.T) {
 	cards := []*card.Card{}
-	ace, _ := card.NewCard(suit.Hearts, rank.Ace, 1)
-	two, _ := card.NewCard(suit.Hearts, rank.Two, 2)
-	three, _ := card.NewCard(suit.Hearts, rank.Three, 3)
-	// four, _ := card.NewCard(suit.Hearts, rank.Four, 4)
-	five, _ := card.NewCard(suit.Hearts, rank.Five, 5)
-	six, _ := card.NewCard(suit.Hearts, rank.Six, 6)
-	// seven, _ := card.NewCard(suit.Hearts, rank.Seven, 7)
-	// eight, _ := card.NewCard(suit.Hearts, rank.Eight, 8)
-	// nine, _ := card.NewCard(suit.Hearts, rank.Nine, 9)
-	jack, _ := card.NewCard(suit.Hearts, rank.Jack, 10)
-	queen, _ := card.NewCard(suit.Spades, rank.Queen, 10)
-	king, _ := card.NewCard(suit.Diamonds, rank.King, 10)
+	ace, _ := card.NewCard(suit.Hearts, rank.Ace, 1, true)
+	two, _ := card.NewCard(suit.Hearts, rank.Two, 2, true)
+	three, _ := card.NewCard(suit.Hearts, rank.Three, 3, true)
+	// four, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
+	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
+	six, _ := card.NewCard(suit.Hearts, rank.Six, 6, true)
+	// seven, _ := card.NewCard(suit.Hearts, rank.Seven, 7, true)
+	// eight, _ := card.NewCard(suit.Hearts, rank.Eight, 8, true)
+	// nine, _ := card.NewCard(suit.Hearts, rank.Nine, 9, true)
+	jack, _ := card.NewCard(suit.Hearts, rank.Jack, 10, true)
+	queen, _ := card.NewCard(suit.Spades, rank.Queen, 10, true)
+	king, _ := card.NewCard(suit.Diamonds, rank.King, 10, true)
 
 	// ace with ten card should be 21
 	cards = append(cards, ace)

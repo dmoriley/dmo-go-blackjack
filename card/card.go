@@ -7,7 +7,7 @@ import (
 	"fmt"
 )
 
-func NewCard(suitInput string, rankNameInput string, cardValue int) (*Card, error) {
+func NewCard(suitInput string, rankNameInput string, cardValue int, isFaceUp bool) (*Card, error) {
 	cardRank, error := rank.NewRank(rankNameInput, cardValue)
 
 	if error != nil {
@@ -23,7 +23,7 @@ func NewCard(suitInput string, rankNameInput string, cardValue int) (*Card, erro
 	card := &Card{
 		Suit:     cardSuit,
 		Rank:     cardRank,
-		IsFaceUp: false,
+		IsFaceUp: isFaceUp,
 	}
 
 	return card, nil

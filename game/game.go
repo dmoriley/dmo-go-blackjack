@@ -39,12 +39,12 @@ func Start(in io.Reader, out io.Writer) {
 
 	blackjack.PlaceBet(blackjack.Player)
 	blackjack.DealInitialCards()
-
+	inputConfig := utils.NewInputConfig(scanner)
 	for {
 		// player presented next play options
 
 		fmt.Fprintf(out, PROMPT)
-		input, _ := utils.GetUserInput(scanner)
+		input, _ := utils.GetUserInput(inputConfig)
 		io.WriteString(out, input+"\n")
 	}
 }
@@ -83,10 +83,11 @@ func (bj *Blackjack) PlaceBet(player *players.Player) {
 
 	var bet int
 	var err error
+	inputConfig := utils.NewInputConfig(bj.scanner)
 
 	for {
 		fmt.Print("Place your bet: $")
-		bet, err = utils.GetUserInputInteger(bj.scanner)
+		bet, err = utils.GetUserInputInteger(inputConfig)
 		if err != nil {
 			fmt.Println(err.Error())
 			fmt.Println("That bet is invalid. Please try again.")
@@ -124,7 +125,7 @@ func (bj *Blackjack) PrintTableCards() string {
 		45,
 		' ',
 		'*',
-		fmt.Sprintf("Total: %d", bj.GetCardsTotal(bj.Dealer.Cards)),
+		fmt.Sprintf("Total: %d", GetCardsTotal(bj.Dealer.Cards)),
 		"left",
 	)
 	utils.FillTextAndPad(&out, 45, ' ', '*', "-------------", "left")
@@ -139,7 +140,7 @@ func (bj *Blackjack) PrintTableCards() string {
 		45,
 		' ',
 		'*',
-		fmt.Sprintf("Total: %d", bj.GetCardsTotal(bj.Player.Cards)),
+		fmt.Sprintf("Total: %d", GetCardsTotal(bj.Player.Cards)),
 		"left",
 	)
 
@@ -154,7 +155,7 @@ func (bj *Blackjack) PrintTableCards() string {
 }
 
 // Determine the card value total of the hand supplied
-func (bj *Blackjack) GetCardsTotal(cards []*card.Card) int {
+func GetCardsTotal(cards []*card.Card) int {
 	total := 0
 	aceCount := 0
 

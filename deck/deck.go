@@ -20,7 +20,7 @@ func newDeck(suits []string, ranks map[string]int) *Deck {
 
 	for _, cardSuit := range suits {
 		for cardRank, cardValue := range ranks {
-			card, error := card.NewCard(cardSuit, cardRank, cardValue)
+			card, error := card.NewCard(cardSuit, cardRank, cardValue, false)
 			if error != nil {
 				panic(error)
 			}
