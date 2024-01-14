@@ -44,7 +44,7 @@ func GetUserInput(config *InputConfig) (string, error) {
 	if len(config.expectedValues) > 0 {
 		// expected values provided, check if input is included
 		if !slices.Contains(config.expectedValues, trimmed) {
-			return "", fmt.Errorf("%q is not apart of the expected values", trimmed)
+			return "", fmt.Errorf("Unexpected value entered: %q", trimmed)
 		}
 	}
 	return trimmed, nil

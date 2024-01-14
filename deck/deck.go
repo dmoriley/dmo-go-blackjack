@@ -119,6 +119,7 @@ func (d *Deck) AddCards(cards []*card.Card) {
 	d.Cards = append(d.Cards, cards...)
 }
 
+// Get a card(s) from the deck
 func (d *Deck) Pop(count int) []*card.Card {
 	if count == 0 {
 		count = 1
