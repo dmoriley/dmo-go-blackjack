@@ -1,9 +1,8 @@
-package game
+package decks
 
 import (
 	"blackjack/card"
 	"blackjack/card/rank"
-	"blackjack/deck"
 	"bytes"
 	"fmt"
 )
@@ -15,7 +14,9 @@ type BlackjackDeck struct {
 	minCardCount int
 	// Slice of all the cards before any are removed
 	allCards []*card.Card
-	deck.Deck
+	// Cards that have been used and are no longer in play
+	discardedCards []*card.Card
+	Deck
 }
 
 type BlackjackDeckConfig struct {
@@ -49,7 +50,7 @@ func NewBlackjackDeck(config *BlackjackDeckConfig) *BlackjackDeck {
 		minCardCount: config.minCardCount,
 	}
 
-	deckToAdd := deck.NewDeck()
+	deckToAdd := NewDeck()
 
 	// change all the kings, queens and jacks to value of 10
 	for _, card := range deckToAdd.Cards {
@@ -125,4 +126,9 @@ func (d *BlackjackDeck) Pop(count int) []*card.Card {
 
 	return popped
 
+}
+
+// Added cards to the discarded pile
+func (d *BlackjackDeck) AddDiscardedCards(cards []*card.Card) {
+	d.discardedCards = append(d.discardedCards, cards...)
 }

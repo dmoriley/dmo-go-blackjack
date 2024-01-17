@@ -1,4 +1,4 @@
-package deck
+package decks
 
 import (
 	"blackjack/card"

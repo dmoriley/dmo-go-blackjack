@@ -3,7 +3,7 @@ package game
 import (
 	"blackjack/card"
 	"blackjack/card/rank"
-	"blackjack/deck"
+	"blackjack/decks"
 	"blackjack/game/players"
 	"blackjack/game/utils"
 	"bufio"
@@ -29,8 +29,8 @@ func Start(in io.Reader, out io.Writer) {
 	}
 	dealer := &players.Dealer{}
 	// TODO: change deck count to a player input at config of game
-	config := NewBlackjackDeckConfig().WithNumberOfDecks(6)
-	deck := NewBlackjackDeck(config)
+	config := decks.NewBlackjackDeckConfig().WithNumberOfDecks(6)
+	deck := decks.NewBlackjackDeck(config)
 	deck.Shuffle(5)
 
 	blackjack := &Blackjack{
@@ -69,7 +69,7 @@ func Start(in io.Reader, out io.Writer) {
 type Blackjack struct {
 	Player  *players.Player
 	Dealer  *players.Dealer
-	Deck    *BlackjackDeck
+	Deck    *decks.BlackjackDeck
 	scanner *bufio.Scanner
 }
 
@@ -144,7 +144,7 @@ func (bj *Blackjack) PrintTableCards() {
 	)
 	utils.FillTextAndPad(&out, 45, ' ', '*', "-------------", "left")
 	utils.FillTextAndPad(&out, 45, ' ', '*', "", "")
-	out.WriteString(deck.PrettyPrintCards(bj.Dealer.Cards))
+	out.WriteString(decks.PrettyPrintCards(bj.Dealer.Cards))
 	utils.FillTextAndPad(&out, 45, ' ', '*', "", "")
 
 	// player name and card total
@@ -160,7 +160,7 @@ func (bj *Blackjack) PrintTableCards() {
 
 	utils.FillTextAndPad(&out, 45, ' ', '*', "-------------", "left")
 	utils.FillTextAndPad(&out, 45, ' ', '*', "", "")
-	out.WriteString(deck.PrettyPrintCards(bj.Player.Cards))
+	out.WriteString(decks.PrettyPrintCards(bj.Player.Cards))
 	utils.FillTextAndPad(&out, 45, ' ', '*', "", "")
 	utils.FillTextAndPad(&out, 45, '*', '*', "", "")
 	utils.FillTextAndPad(&out, 45, '*', '*', "", "")
@@ -326,7 +326,7 @@ func (bj *Blackjack) PlayerWonHand() {
 
 // Player and dealer have the same card total
 func (bj *Blackjack) Standoff() {
-	fmt.Print("Stand-off: Returning all bets...\n\n")
+	fmt.Print("Push! Returning all bets...\n\n")
 	// player looses nothing, add bet back to cash
 	bj.Player.Cash += bj.Player.Bet
 	bj.Player.Bet = 0
