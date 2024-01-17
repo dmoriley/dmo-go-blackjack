@@ -43,13 +43,16 @@ func Start(in io.Reader, out io.Writer) {
 	for {
 		blackjack.PlaceBet(blackjack.Player)
 		blackjack.DealCards()
-		// inputConfig := utils.NewInputConfig(scanner)
 		var roundOver bool
-		if GetCardsTotal(blackjack.Player.Cards) >= 21 {
+		if playerScore := GetCardsTotal(blackjack.Player.Cards); playerScore >= 21 {
+			roundOver = true
 			// player hit 21 points or is over, in either case
 			// they have no more moves to play, so stand
-			blackjack.PlayerStand()
-			roundOver = true
+			if playerScore == 21 {
+				blackjack.DealerBlackjackCheck()
+			} else {
+				blackjack.PlayerStand()
+			}
 		}
 		for !roundOver {
 			move := blackjack.ChooseNextMove()
@@ -122,7 +125,7 @@ func (bj *Blackjack) PlaceBet(player *players.Player) {
 	player.Cash = player.Cash - bet
 	player.Bet = bet
 
-	fmt.Printf("You have place a bet of: $%d\nRemaining in wallet: $%d\n", bet, player.Cash)
+	fmt.Printf("Remaining in wallet: $%d\n", player.Cash)
 }
 
 func (bj *Blackjack) PrintTableCards() {
@@ -270,6 +273,7 @@ func (bj *Blackjack) PlayerStand() {
 	// check if dealer bust
 	if dealerScore > BLACKJACK {
 		bj.PlayerWonHand()
+		return
 	}
 
 	playerScore := GetCardsTotal(bj.Player.Cards)
@@ -278,6 +282,27 @@ func (bj *Blackjack) PlayerStand() {
 	if dealerScore > playerScore {
 		bj.PlayerLostHand()
 	} else if dealerScore < playerScore {
+		bj.PlayerWonHand()
+	} else {
+		bj.Standoff()
+	}
+
+}
+
+// Player was dealt a natural blackjack, check if the dealer also has one
+func (bj *Blackjack) DealerBlackjackCheck() {
+	// dealer turns over face down card
+	for _, card := range bj.Dealer.Cards {
+		card.IsFaceUp = true
+	}
+
+	dealerScore := GetCardsTotal(bj.Dealer.Cards)
+	playerScore := GetCardsTotal(bj.Player.Cards)
+
+	bj.PrintTableCards()
+
+	// compare scores to see who won
+	if dealerScore < playerScore {
 		bj.PlayerWonHand()
 	} else {
 		bj.Standoff()
@@ -337,11 +362,13 @@ func (bj *Blackjack) Standoff() {
 // which will maintain the same memory adderss for the game, but also
 // retain the highest capacity acheived across hands played
 func (bj *Blackjack) cleanupCards() {
+	bj.Deck.AddDiscardedCards(bj.Player.Cards)
 	// sets values in slice to 'zero'
 	clear(bj.Player.Cards)
 	// reslice so length of slice is now zero again
 	bj.Player.Cards = bj.Player.Cards[:0]
 	// same as above
+	bj.Deck.AddDiscardedCards(bj.Dealer.Cards)
 	clear(bj.Dealer.Cards)
 	bj.Dealer.Cards = bj.Dealer.Cards[:0]
 }

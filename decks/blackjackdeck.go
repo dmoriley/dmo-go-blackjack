@@ -13,6 +13,7 @@ type BlackjackDeck struct {
 	// When the deck reaches a minimum number of cards reshuffle all cards back to deck
 	minCardCount int
 	// Slice of all the cards before any are removed
+	// TODO: possibly remove this property
 	allCards []*card.Card
 	// Cards that have been used and are no longer in play
 	discardedCards []*card.Card
@@ -28,7 +29,8 @@ func NewBlackjackDeckConfig() *BlackjackDeckConfig {
 	return &BlackjackDeckConfig{
 		// default values
 		numberOfDecks: 6,
-		minCardCount:  60,
+		// minCardCount:  60,
+		minCardCount: 6*52 - 10,
 	}
 }
 
@@ -67,6 +69,7 @@ func NewBlackjackDeck(config *BlackjackDeckConfig) *BlackjackDeck {
 
 	bjDeck.allCards = bjDeck.Cards[:] // get a slice of all the cards
 
+	fmt.Printf("\nCards len: %d, Cards cap: %d\n", bjDeck.GetLength(), cap(bjDeck.Cards))
 	return bjDeck
 }
 
@@ -116,12 +119,7 @@ func (d *BlackjackDeck) Pop(count int) []*card.Card {
 
 	// TODO: need to rethink this logic cause it duplicates the cards that are still in play on the table
 	if d.GetLength() == d.minCardCount {
-		fmt.Println("\n***********************************")
-		fmt.Println("***** Reshuffling the deck... *****")
-		fmt.Println("***********************************")
-		// reshuffle the deck when its reached minimum cards
-		d.Cards = d.allCards[:] // Cards is now a slice of all the original cards
-		d.Shuffle(5)            // reshuffle the deck 5 times
+		d.Reshuffle(5)
 	}
 
 	return popped
@@ -131,4 +129,13 @@ func (d *BlackjackDeck) Pop(count int) []*card.Card {
 // Added cards to the discarded pile
 func (d *BlackjackDeck) AddDiscardedCards(cards []*card.Card) {
 	d.discardedCards = append(d.discardedCards, cards...)
+}
+
+// Added the discarded cards back to the deck and shuffle
+func (d *BlackjackDeck) Reshuffle(shuffleCount int) {
+	fmt.Println("\n***********************************")
+	fmt.Println("***** Reshuffling the deck... *****")
+	fmt.Println("***********************************")
+	d.Cards = append(d.Cards, d.discardedCards...)
+	d.Shuffle(shuffleCount)
 }
