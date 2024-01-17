@@ -23,11 +23,14 @@ func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
 
 	player := &players.Player{
+		// TODO: change player name to player input value at start of game
 		Name: "David",
 		Cash: 500,
 	}
 	dealer := &players.Dealer{}
-	deck := NewBlackjackDeck(3)
+	// TODO: change deck count to a player input at config of game
+	config := NewBlackjackDeckConfig().WithNumberOfDecks(6)
+	deck := NewBlackjackDeck(config)
 	deck.Shuffle(5)
 
 	blackjack := &Blackjack{
@@ -43,6 +46,8 @@ func Start(in io.Reader, out io.Writer) {
 		// inputConfig := utils.NewInputConfig(scanner)
 		var roundOver bool
 		if GetCardsTotal(blackjack.Player.Cards) >= 21 {
+			// player hit 21 points or is over, in either case
+			// they have no more moves to play, so stand
 			blackjack.PlayerStand()
 			roundOver = true
 		}
@@ -57,24 +62,6 @@ func Start(in io.Reader, out io.Writer) {
 				roundOver = true
 			}
 		}
-
-		// for {
-		// 	// player presented next play options
-		// 	move := blackjack.ChooseNextMove()
-		//
-		// 	switch move {
-		// 	case "h":
-		// 		fmt.Println("Player hit")
-		// 		blackjack.PlayerHit()
-		// 	case "s":
-		// 		fmt.Println("Player stand")
-		// 		blackjack.PlayerStand()
-		// 		break
-		// 	}
-		// 	// fmt.Fprintf(out, PROMPT)
-		// 	// input, _ := utils.GetUserInput(inputConfig)
-		// 	// io.WriteString(out, move+"\n")
-		// }
 	}
 }
 
@@ -251,13 +238,11 @@ func (bj *Blackjack) ChooseNextMove() string {
 		move, err = utils.GetUserInput(inputConfig)
 		if err == nil {
 			// input was correct, break out of loop
-			fmt.Println("Input was good")
 			break
 		}
 
 		fmt.Println(err.Error())
 	}
-	fmt.Println("Returning move: " + move)
 	return move
 }
 
