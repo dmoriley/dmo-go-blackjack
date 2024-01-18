@@ -4,7 +4,7 @@ import (
 	"blackjack/card"
 	"blackjack/card/rank"
 	"blackjack/card/suit"
-	"blackjack/deck"
+	"blackjack/decks"
 	"testing"
 )
 
@@ -194,7 +194,7 @@ func TestCombiningAllCards(t *testing.T) {
 			"Card total wrong. Want = %d, got = %d\n%s",
 			want,
 			got,
-			deck.PrintCards(cards, true),
+			decks.PrintCards(cards, true),
 		)
 
 	}
@@ -210,7 +210,7 @@ func TestCombiningAllCards(t *testing.T) {
 			"Card total wrong. Want = %d, got = %d\n%s",
 			want,
 			got,
-			deck.PrintCards(cards, true),
+			decks.PrintCards(cards, true),
 		)
 
 	}
@@ -226,7 +226,7 @@ func TestCombiningAllCards(t *testing.T) {
 			"Card total wrong. Want = %d, got = %d\n%s",
 			want,
 			got,
-			deck.PrintCards(cards, true),
+			decks.PrintCards(cards, true),
 		)
 
 	}

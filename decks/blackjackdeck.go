@@ -12,9 +12,6 @@ type BlackjackDeck struct {
 	DeckCount int
 	// When the deck reaches a minimum number of cards reshuffle all cards back to deck
 	minCardCount int
-	// Slice of all the cards before any are removed
-	// TODO: possibly remove this property
-	allCards []*card.Card
 	// Cards that have been used and are no longer in play
 	discardedCards []*card.Card
 	Deck
@@ -52,22 +49,18 @@ func NewBlackjackDeck(config *BlackjackDeckConfig) *BlackjackDeck {
 		minCardCount: config.minCardCount,
 	}
 
-	deckToAdd := NewDeck()
+	for i := 0; i < config.numberOfDecks; i++ {
+		d := NewDeck()
+		bjDeck.AddDeck(d)
+	}
 
 	// change all the kings, queens and jacks to value of 10
-	for _, card := range deckToAdd.Cards {
+	for _, card := range bjDeck.Cards {
 		if card.Rank.Name == rank.King || card.Rank.Name == rank.Queen ||
 			card.Rank.Name == rank.Jack {
 			card.Rank.Value = 10
 		}
 	}
-
-	for i := 0; i < config.numberOfDecks; i++ {
-		bjDeck.AddCards(deckToAdd.Cards)
-		bjDeck.DeckCount++
-	}
-
-	bjDeck.allCards = bjDeck.Cards[:] // get a slice of all the cards
 
 	fmt.Printf("\nCards len: %d, Cards cap: %d\n", bjDeck.GetLength(), cap(bjDeck.Cards))
 	return bjDeck
@@ -117,7 +110,6 @@ func (d *BlackjackDeck) Pop(count int) []*card.Card {
 	// re-slice the original array to start after the popped
 	d.Cards = d.Cards[count:]
 
-	// TODO: need to rethink this logic cause it duplicates the cards that are still in play on the table
 	if d.GetLength() == d.minCardCount {
 		d.Reshuffle(5)
 	}
@@ -131,11 +123,27 @@ func (d *BlackjackDeck) AddDiscardedCards(cards []*card.Card) {
 	d.discardedCards = append(d.discardedCards, cards...)
 }
 
+// Add another deck to the current one
+func (d *BlackjackDeck) AddDeck(deck *Deck) {
+	d.AddCards(deck.Cards)
+	d.DeckCount++
+}
+
 // Added the discarded cards back to the deck and shuffle
 func (d *BlackjackDeck) Reshuffle(shuffleCount int) {
 	fmt.Println("\n***********************************")
 	fmt.Println("***** Reshuffling the deck... *****")
 	fmt.Println("***********************************")
+
+	// flip each card to face down
+	for _, discardedCard := range d.discardedCards {
+		discardedCard.IsFaceUp = false
+	}
+
 	d.Cards = append(d.Cards, d.discardedCards...)
+
+	// assign new blank slice
+	d.discardedCards = []*card.Card{}
+
 	d.Shuffle(shuffleCount)
 }

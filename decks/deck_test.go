@@ -40,12 +40,3 @@ func TestCustomRanksNewDeck(t *testing.T) {
 		t.Fatalf("Expected %d cards in deck, got %d", expectedDeckLength, dlen)
 	}
 }
-
-// TODO: finish testing these later
-/* func TestAddCards(t *testing.T) {
-
-}
-
-func TestPop(t *testing.T) {
-
-} */
