@@ -65,7 +65,15 @@ func Start(in io.Reader, out io.Writer) {
 				roundOver = true
 			}
 		}
+
+		if blackjack.Player.Cash == 0 {
+			fmt.Println("\n*******************************")
+			fmt.Println("Busted! You're out of money.")
+			break
+		}
 	}
+	fmt.Println("*******************************")
+	fmt.Println("Thanks for playing! Come back with more cash.")
 }
 
 // TODO: constructor function for this structure, try to use either Configuration pattern or dependency injection
@@ -78,6 +86,8 @@ type Blackjack struct {
 
 func (bj *Blackjack) DealCards() {
 	fmt.Println("\nDealing cards...")
+	// dealt in a loop so each player + dealer is given a card one after the other
+	// instead of dealing out a player entirely before moving to the next one
 	for i := 0; i < 2; i++ {
 		card := bj.Deck.Pop(1)[0]
 		card.IsFaceUp = true
@@ -172,6 +182,7 @@ func (bj *Blackjack) PrintTableCards() {
 }
 
 // Determine the card value total of the hand supplied
+// Does not count value of card that is not face up
 func GetCardsTotal(cards []*card.Card) int {
 	total := 0
 	aceCount := 0
@@ -208,12 +219,23 @@ func GetCardsTotal(cards []*card.Card) int {
 	return total
 }
 
+type PlayerMove int
+
 const (
-	HIT   = 1
-	STAND = 2
+	// TODO: implement hint machanic that assess the cards on the table and spits out the
+	// recommended best move based on basic strategy
+	HINT  PlayerMove = 0
+	HIT   PlayerMove = 1
+	STAND PlayerMove = 2
+	// TODO: implement
+	DOUBLE PlayerMove = 3
+	// TODO: implement
+	SPLIT PlayerMove = 4
+	// TODO: implement
+	SURRENDER PlayerMove = 5
 )
 
-func (bj *Blackjack) GetAvailableMoves() int {
+func (bj *Blackjack) GetAvailableMoves() PlayerMove {
 	// hs for hit and stand
 	return HIT + STAND
 }
@@ -223,7 +245,7 @@ func (bj *Blackjack) ChooseNextMove() string {
 	// determine players next available moves
 	availableMoves := bj.GetAvailableMoves()
 	switch availableMoves {
-	case 3: // hit + stand
+	case HIT + STAND:
 		prompt = `
 	---------------
 	| HIT | STAND |  
@@ -249,6 +271,8 @@ func (bj *Blackjack) ChooseNextMove() string {
 	return move
 }
 
+// TODO: refactor method to return the outcome of the stand instead
+// of calling methods inside
 func (bj *Blackjack) PlayerStand() {
 	// dealer turns over face down card
 	for _, card := range bj.Dealer.Cards {
@@ -256,6 +280,17 @@ func (bj *Blackjack) PlayerStand() {
 	}
 
 	dealerScore := GetCardsTotal(bj.Dealer.Cards)
+
+	// Check if the dealer has a soft 17 on the first two cards
+	// this is an ace + 6 which can either be 7 or 17, so force the
+	// dealer to hit assuming the value of the ace will be 1
+	if dealerScore == 17 && len(bj.Dealer.Cards) == 2 {
+		card := bj.Deck.Pop(1)[0]
+		card.IsFaceUp = true
+		// deal the dealer one card
+		bj.Dealer.Cards = append(bj.Dealer.Cards, card)
+		dealerScore = GetCardsTotal(bj.Dealer.Cards)
+	}
 
 	// when the dealer hits a score of 17 or more, auto stand
 	for dealerScore < 17 {
