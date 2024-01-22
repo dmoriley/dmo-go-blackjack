@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 )
 
 const (
@@ -58,10 +59,12 @@ func Start(in io.Reader, out io.Writer) {
 			move := blackjack.ChooseNextMove()
 
 			switch move {
-			case "h":
+			case HIT:
 				outcome = blackjack.PlayerHit()
-			case "s":
+			case STAND:
 				outcome = blackjack.PlayerStand()
+			case DOUBLE:
+				outcome = blackjack.PlayerDouble()
 			}
 		}
 
@@ -229,33 +232,50 @@ func GetCardsTotal(cards []*card.Card) int {
 	return total
 }
 
-type PlayerMove int
-
 const (
 	// TODO: implement hint machanic that assess the cards on the table and spits out the
 	// recommended best move based on basic strategy
-	HINT  PlayerMove = 0
-	HIT   PlayerMove = 1
-	STAND PlayerMove = 2
+	HINT  = "i"
+	HIT   = "h"
+	STAND = "s"
 	// TODO: implement
-	DOUBLE PlayerMove = 3
+	DOUBLE = "d"
 	// TODO: implement
-	SPLIT PlayerMove = 4
-	// TODO: implement
-	SURRENDER PlayerMove = 5
+	SPLIT = "p"
+	// TODO: implement; early and late surrenders? Make it a config options at the beginning screen
+	SURRENDER = 'r'
 )
 
-func (bj *Blackjack) GetAvailableMoves() PlayerMove {
-	// hs for hit and stand
-	return HIT + STAND
+// Check if the player has other move options aside from hit and stand
+func (bj *Blackjack) GetOtherMoves() string {
+
+	move := ""
+
+	if len(bj.Player.Cards) == 2 {
+		// if original two cards
+		playerTotal := GetCardsTotal(bj.Player.Cards)
+		if playerTotal == 9 || playerTotal == 10 || playerTotal == 11 {
+			move += DOUBLE
+		}
+	}
+
+	return move
 }
 
 func (bj *Blackjack) ChooseNextMove() string {
 	var prompt string
 	// determine players next available moves
-	availableMoves := bj.GetAvailableMoves()
-	switch availableMoves {
-	case HIT + STAND:
+	otherMoves := bj.GetOtherMoves()
+
+	switch otherMoves {
+	case DOUBLE:
+		prompt = `
+	------------------------
+	| HIT | STAND | DOUBLE |
+	| (h) |  (s)  |  (d)   |
+	------------------------
+		`
+	default:
 		prompt = `
 	---------------
 	| HIT | STAND |  
@@ -265,7 +285,10 @@ func (bj *Blackjack) ChooseNextMove() string {
 	}
 	fmt.Println(prompt)
 
-	inputConfig := utils.NewInputConfig(bj.scanner).SetExpectedValues("h", "s")
+	expectedValues := fmt.Sprintf("hs%s", otherMoves)
+
+	inputConfig := utils.NewInputConfig(bj.scanner).
+		SetExpectedValues(strings.Split(expectedValues, "")...)
 	var move string
 	var err error
 	for {
@@ -385,6 +408,29 @@ func (bj *Blackjack) PlayerHit() (outcome RoundOutcome) {
 	}
 
 	return outcome
+}
+
+func (bj *Blackjack) PlayerDouble() (outcome RoundOutcome) {
+	// check if the user has enough money to do a double
+	if bj.Player.Cash < bj.Player.Bet {
+		fmt.Printf(
+			"You do not have enough cash left to perform a double.\nNeed $%d, but you only have %d\n",
+			bj.Player.Cash,
+			bj.Player.Bet,
+		)
+		return InProgress
+	}
+
+	// player has enough cash
+	bj.Player.Cash -= bj.Player.Bet
+	bj.Player.Bet *= 2
+	// only pop one more card before standing
+	card := bj.Deck.Pop(1)[0]
+	card.IsFaceUp = true
+
+	bj.Player.Cards = append(bj.Player.Cards, card)
+
+	return bj.PlayerStand()
 }
 
 // Player has lost the hand, clean up for next deal

@@ -298,5 +298,127 @@ func TestDealerSoft17(t *testing.T) {
 	if outcome != PlayerLost {
 		t.Fatalf("Round outcome is wrong. Should have %d, but got %d", PlayerLost, outcome)
 	}
+}
+
+func TestDoubleMoveAvailable(t *testing.T) {
+	// double is allowed when a intial two cards has a total of 9-11
+
+	four, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
+	six, _ := card.NewCard(suit.Hearts, rank.Six, 6, true)
+
+	// total of 10
+	playerCards := []*card.Card{
+		four, six,
+	}
+
+	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
+	seven, _ := card.NewCard(suit.Hearts, rank.Seven, 7, true)
+
+	// total of 12
+	dealerCards := []*card.Card{
+		five,
+		seven,
+	}
+
+	bj := &Blackjack{
+		Player: &players.Player{
+			Cards: playerCards,
+			Name:  "player1",
+			Cash:  500,
+			Bet:   5,
+		},
+		Dealer: &players.Dealer{
+			Cards: dealerCards,
+		},
+		// should have minCardCount of 0 as 'zero' value for being unset
+		Deck: &decks.BlackjackDeck{
+			DeckCount: 1,
+			Deck: decks.Deck{
+				Cards: []*card.Card{
+					// first card out of the deck should be six
+					six,
+					five,
+					four,
+				},
+			},
+		},
+	}
+
+	if dt := GetCardsTotal(bj.Player.Cards); dt != 10 {
+		t.Fatalf("Card total not 10, got %d", dt)
+	}
+
+	actual := bj.GetOtherMoves()
+
+	if actual != "d" {
+		t.Fatalf("Next move is wrong. Expected %s but got %s", "d", actual)
+	}
+
+}
+
+func TestPlayerDouble(t *testing.T) {
+	four, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
+	six, _ := card.NewCard(suit.Hearts, rank.Six, 6, true)
+
+	// total of 10
+	playerCards := []*card.Card{
+		four, six,
+	}
+
+	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
+	seven, _ := card.NewCard(suit.Hearts, rank.Seven, 7, true)
+
+	// total of 12
+	dealerCards := []*card.Card{
+		five,
+		seven,
+	}
+
+	ace, _ := card.NewCard(suit.Diamonds, rank.Ace, 1, true)
+	eight, _ := card.NewCard(suit.Diamonds, rank.Eight, 8, true)
+
+	originalBet := 5
+	originalCash := 500
+	bj := &Blackjack{
+		Player: &players.Player{
+			Cards: playerCards,
+			Name:  "player1",
+			Cash:  originalCash,
+			Bet:   originalBet,
+		},
+		Dealer: &players.Dealer{
+			Cards: dealerCards,
+		},
+		// should have minCardCount of 0 as 'zero' value for being unset
+		Deck: &decks.BlackjackDeck{
+			DeckCount: 1,
+			Deck: decks.Deck{
+				Cards: []*card.Card{
+					ace, // first card should be delt to player
+					eight,
+					five,
+					four,
+				},
+			},
+		},
+	}
+
+	actual := bj.PlayerDouble()
+
+	if bj.Player.Bet != originalBet*2 {
+		t.Fatalf("Double bet is wrong. Expected %d but got %d", originalBet, bj.Player.Bet)
+	}
+
+	if bj.Player.Cash != originalCash-originalBet {
+		t.Fatalf(
+			"Cash is wrong after double bet. Expected %d but got %d",
+			originalCash,
+			bj.Player.Cash,
+		)
+	}
+
+	if actual != PlayerWon {
+		t.Fatalf("Outcome is wrong. Expected %d but got %d", PlayerWon, actual)
+	}
 
 }
