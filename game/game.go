@@ -41,30 +41,40 @@ func Start(in io.Reader, out io.Writer) {
 	}
 
 	for {
+		outcome := InProgress
 		blackjack.PlaceBet(blackjack.Player)
 		blackjack.DealCards()
-		var roundOver bool
 		if playerScore := GetCardsTotal(blackjack.Player.Cards); playerScore >= 21 {
-			roundOver = true
 			// player hit 21 points or is over, in either case
 			// they have no more moves to play, so stand
 			if playerScore == 21 {
-				blackjack.DealerBlackjackCheck()
+				outcome = blackjack.DealerBlackjackCheck()
 			} else {
-				blackjack.PlayerStand()
+				outcome = blackjack.PlayerStand()
 			}
 		}
-		for !roundOver {
+
+		for outcome == InProgress {
 			move := blackjack.ChooseNextMove()
 
 			switch move {
 			case "h":
-				roundOver = blackjack.PlayerHit()
+				outcome = blackjack.PlayerHit()
 			case "s":
-				blackjack.PlayerStand()
-				roundOver = true
+				outcome = blackjack.PlayerStand()
 			}
 		}
+
+		switch outcome {
+		case PlayerWon:
+			blackjack.PlayerWonHand()
+		case PlayerLost:
+			blackjack.PlayerLostHand()
+		case Standoff:
+			blackjack.Standoff()
+		}
+
+		blackjack.cleanupCards()
 
 		if blackjack.Player.Cash == 0 {
 			fmt.Println("\n*******************************")
@@ -271,9 +281,16 @@ func (bj *Blackjack) ChooseNextMove() string {
 	return move
 }
 
-// TODO: refactor method to return the outcome of the stand instead
-// of calling methods inside
-func (bj *Blackjack) PlayerStand() {
+type RoundOutcome int
+
+const (
+	InProgress RoundOutcome = 0
+	PlayerWon  RoundOutcome = 1
+	PlayerLost RoundOutcome = 2
+	Standoff   RoundOutcome = 3
+)
+
+func (bj *Blackjack) PlayerStand() RoundOutcome {
 	// dealer turns over face down card
 	for _, card := range bj.Dealer.Cards {
 		card.IsFaceUp = true
@@ -307,25 +324,26 @@ func (bj *Blackjack) PlayerStand() {
 
 	// check if dealer bust
 	if dealerScore > BLACKJACK {
-		bj.PlayerWonHand()
-		return
+		return PlayerWon
 	}
 
 	playerScore := GetCardsTotal(bj.Player.Cards)
 
+	var outcome RoundOutcome
 	// compare scores to see who won
 	if dealerScore > playerScore {
-		bj.PlayerLostHand()
+		outcome = PlayerLost
 	} else if dealerScore < playerScore {
-		bj.PlayerWonHand()
+		outcome = PlayerWon
 	} else {
-		bj.Standoff()
+		outcome = Standoff
 	}
 
+	return outcome
 }
 
 // Player was dealt a natural blackjack, check if the dealer also has one
-func (bj *Blackjack) DealerBlackjackCheck() {
+func (bj *Blackjack) DealerBlackjackCheck() RoundOutcome {
 	// dealer turns over face down card
 	for _, card := range bj.Dealer.Cards {
 		card.IsFaceUp = true
@@ -336,17 +354,18 @@ func (bj *Blackjack) DealerBlackjackCheck() {
 
 	bj.PrintTableCards()
 
+	var outcome RoundOutcome
 	// compare scores to see who won
 	if dealerScore < playerScore {
-		bj.PlayerWonHand()
+		outcome = PlayerWon
 	} else {
-		bj.Standoff()
+		outcome = Standoff
 	}
-
+	return outcome
 }
 
 // Player hit
-func (bj *Blackjack) PlayerHit() (roundOver bool) {
+func (bj *Blackjack) PlayerHit() (outcome RoundOutcome) {
 	card := bj.Deck.Pop(1)[0]
 	card.IsFaceUp = true
 
@@ -356,16 +375,16 @@ func (bj *Blackjack) PlayerHit() (roundOver bool) {
 
 	newTotal := GetCardsTotal(bj.Player.Cards)
 
+	outcome = InProgress
+
 	if newTotal > BLACKJACK {
 		// dont stand cause dealer doesnt need to hit
-		bj.PlayerLostHand()
-		roundOver = true
+		outcome = PlayerLost
 	} else if newTotal == BLACKJACK {
-		bj.PlayerStand()
-		roundOver = true
+		outcome = bj.PlayerStand()
 	}
 
-	return
+	return outcome
 }
 
 // Player has lost the hand, clean up for next deal
@@ -373,7 +392,6 @@ func (bj *Blackjack) PlayerLostHand() {
 	fmt.Print("***  Dealer win!  ***\nCollecting all losing bets...\n\n")
 	// Player loses the bet
 	bj.Player.Bet = 0
-	bj.cleanupCards()
 }
 
 func (bj *Blackjack) PlayerWonHand() {
@@ -381,7 +399,6 @@ func (bj *Blackjack) PlayerWonHand() {
 	winnings := bj.Player.Bet * 2
 	bj.Player.Cash += winnings
 	bj.Player.Bet = 0
-	bj.cleanupCards()
 }
 
 // Player and dealer have the same card total
@@ -390,7 +407,6 @@ func (bj *Blackjack) Standoff() {
 	// player looses nothing, add bet back to cash
 	bj.Player.Cash += bj.Player.Bet
 	bj.Player.Bet = 0
-	bj.cleanupCards()
 }
 
 // Clear the cards of the dealer and the player by clearing and reslicing
