@@ -26,18 +26,21 @@ func NewBlackjackDeckConfig() *BlackjackDeckConfig {
 	return &BlackjackDeckConfig{
 		// default values
 		numberOfDecks: 6,
-		// minCardCount:  60,
-		minCardCount: 6*52 - 10,
+		// 20% of a 6 52card decks
+		minCardCount: (52 * 6 * 2 / 10),
 	}
 }
 
 // Number of decks the blackjack deck should contain
 func (c *BlackjackDeckConfig) WithNumberOfDecks(count int) *BlackjackDeckConfig {
 	c.numberOfDecks = count
+	// set a default min count of 20% of all the cards available
+	c.minCardCount = 52 * count * 2 / 10
 	return c
 }
 
-// Minimum number of cards before the deck is reshuffled
+// Minimum number of cards before the deck is reshuffled. Must be set after WithNumberOfDecks to override
+// default minCardCount of 20% of the cards available
 func (c *BlackjackDeckConfig) WithMinCardCount(count int) *BlackjackDeckConfig {
 	c.minCardCount = count
 	return c

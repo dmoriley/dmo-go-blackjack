@@ -35,10 +35,11 @@ func Start(in io.Reader, out io.Writer) {
 	deck.Shuffle(5)
 
 	blackjack := &Blackjack{
-		Dealer:  dealer,
-		Player:  player,
-		Deck:    deck,
-		scanner: scanner,
+		Dealer:     dealer,
+		Player:     player,
+		Deck:       deck,
+		scanner:    scanner,
+		payoutRate: normalRate,
 	}
 
 	for {
@@ -48,7 +49,8 @@ func Start(in io.Reader, out io.Writer) {
 		if playerScore := GetCardsTotal(blackjack.Player.Cards); playerScore >= 21 {
 			// player hit 21 points or is over, in either case
 			// they have no more moves to play, so stand
-			if playerScore == 21 {
+			if playerScore == BLACKJACK {
+				blackjack.payoutRate = blackjackRate
 				outcome = blackjack.DealerBlackjackCheck()
 			} else {
 				outcome = blackjack.PlayerStand()
@@ -77,7 +79,7 @@ func Start(in io.Reader, out io.Writer) {
 			blackjack.Standoff()
 		}
 
-		blackjack.cleanupCards()
+		blackjack.cleanup()
 
 		if blackjack.Player.Cash == 0 {
 			fmt.Println("\n*******************************")
@@ -89,12 +91,21 @@ func Start(in io.Reader, out io.Writer) {
 	fmt.Println("Thanks for playing! Come back with more cash.")
 }
 
+type payoutType int
+
+const (
+	normalRate    payoutType = 1
+	blackjackRate payoutType = 2
+)
+
 // TODO: constructor function for this structure, try to use either Configuration pattern or dependency injection
 type Blackjack struct {
 	Player  *players.Player
 	Dealer  *players.Dealer
 	Deck    *decks.BlackjackDeck
 	scanner *bufio.Scanner
+	// The rate a player's bet is payout at when they win a round
+	payoutRate payoutType
 }
 
 func (bj *Blackjack) DealCards() {
@@ -235,10 +246,9 @@ func GetCardsTotal(cards []*card.Card) int {
 const (
 	// TODO: implement hint machanic that assess the cards on the table and spits out the
 	// recommended best move based on basic strategy
-	HINT  = "i"
-	HIT   = "h"
-	STAND = "s"
-	// TODO: implement
+	HINT   = "i"
+	HIT    = "h"
+	STAND  = "s"
 	DOUBLE = "d"
 	// TODO: implement
 	SPLIT = "p"
@@ -404,6 +414,8 @@ func (bj *Blackjack) PlayerHit() (outcome RoundOutcome) {
 		// dont stand cause dealer doesnt need to hit
 		outcome = PlayerLost
 	} else if newTotal == BLACKJACK {
+		fmt.Println("BLACKJACK!!\nCollect your winnings at a rate of 1.5.")
+		bj.payoutRate = blackjackRate
 		outcome = bj.PlayerStand()
 	}
 
@@ -442,8 +454,14 @@ func (bj *Blackjack) PlayerLostHand() {
 
 func (bj *Blackjack) PlayerWonHand() {
 	fmt.Print("***  Player win!  ***\nAdding winnings to your wallet...\n\n")
-	winnings := bj.Player.Bet * 2
-	bj.Player.Cash += winnings
+	if bj.payoutRate == normalRate {
+		// effective rate or 1
+		bj.Player.Cash += (bj.Player.Bet * 2)
+	} else {
+		// else is blackjack rate so rate is 1.5
+		// *15 /10 is the same as doing * 1.5 but we avoid floats
+		bj.Player.Cash += (bj.Player.Bet * 15 / 10)
+	}
 	bj.Player.Bet = 0
 }
 
@@ -458,7 +476,7 @@ func (bj *Blackjack) Standoff() {
 // Clear the cards of the dealer and the player by clearing and reslicing
 // which will maintain the same memory adderss for the game, but also
 // retain the highest capacity acheived across hands played
-func (bj *Blackjack) cleanupCards() {
+func (bj *Blackjack) cleanup() {
 	bj.Deck.AddDiscardedCards(bj.Player.Cards)
 	// sets values in slice to 'zero'
 	clear(bj.Player.Cards)
@@ -468,4 +486,6 @@ func (bj *Blackjack) cleanupCards() {
 	bj.Deck.AddDiscardedCards(bj.Dealer.Cards)
 	clear(bj.Dealer.Cards)
 	bj.Dealer.Cards = bj.Dealer.Cards[:0]
+
+	bj.payoutRate = normalRate
 }

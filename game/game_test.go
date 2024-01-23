@@ -422,3 +422,70 @@ func TestPlayerDouble(t *testing.T) {
 	}
 
 }
+
+func TestBlackjackReturnRate(t *testing.T) {
+	king, _ := card.NewCard(suit.Hearts, rank.King, 10, true)
+	queen, _ := card.NewCard(suit.Hearts, rank.Queen, 10, true)
+
+	// total 21
+	playerCards := []*card.Card{
+		queen,
+		king,
+	}
+
+	jack, _ := card.NewCard(suit.Hearts, rank.Jack, 2, true)
+	six, _ := card.NewCard(suit.Hearts, rank.Six, 6, true)
+
+	// should be a soft 16
+	dealerCards := []*card.Card{
+		jack,
+		six,
+	}
+
+	four, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
+	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
+	ace, _ := card.NewCard(suit.Hearts, rank.Ace, 1, true)
+
+	bj := &Blackjack{
+		Player: &players.Player{
+			Cards: playerCards,
+			Name:  "player1",
+			Cash:  500,
+			Bet:   50,
+		},
+		Dealer: &players.Dealer{
+			Cards: dealerCards,
+		},
+		// should have minCardCount of 0 as 'zero' value for being unset
+		Deck: &decks.BlackjackDeck{
+			DeckCount: 1,
+			Deck: decks.Deck{
+				Cards: []*card.Card{
+					ace,
+					four,
+					five,
+				},
+			},
+		},
+	}
+
+	if dt := GetCardsTotal(bj.Player.Cards); dt != 20 {
+		t.Fatalf("Card total wrong. Got 21, got %d", dt)
+	}
+
+	outcome := bj.PlayerHit()
+
+	if outcome != PlayerWon {
+		t.Fatalf("Round outcome is wrong. Should have %d, but got %d", PlayerWon, outcome)
+	}
+
+	if bj.payoutRate != blackjackRate {
+		t.Fatalf("Payout rate is wrong. Should have %d, but got %d", blackjackRate, bj.payoutRate)
+	}
+
+	bj.PlayerWonHand()
+
+	if bj.Player.Cash != 575 {
+		t.Fatalf("Total cash is wrong after payout. Should have %d but got %d", 575, bj.Player.Cash)
+	}
+}
