@@ -3,6 +3,7 @@ package game
 import (
 	"blackjack/card"
 	"blackjack/card/rank"
+	"blackjack/card/suit"
 	"blackjack/decks"
 	"blackjack/game/players"
 	"blackjack/game/utils"
@@ -30,9 +31,30 @@ func Start(in io.Reader, out io.Writer) {
 	}
 	dealer := &players.Dealer{}
 	// TODO: change deck count to a player input at config of game
-	config := decks.NewBlackjackDeckConfig().WithNumberOfDecks(6)
+	config := decks.NewBlackjackDeckConfig().WithNumberOfDecks(1)
 	deck := decks.NewBlackjackDeck(config)
 	deck.Shuffle(5)
+
+	ten1, _ := card.NewCard(suit.Clubs, rank.Ten, 10, true)
+	ten2, _ := card.NewCard(suit.Hearts, rank.Ten, 10, true)
+
+	two, _ := card.NewCard(suit.Hearts, rank.Two, 2, true)
+	three, _ := card.NewCard(suit.Hearts, rank.Three, 3, true)
+	four, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
+	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
+
+	ds := []*card.Card{
+		ten1,
+		two,
+		ten2,
+		three,
+		four,
+		five,
+	}
+
+	ds = append(ds, deck.Cards...)
+
+	deck.Cards = ds
 
 	blackjack := &Blackjack{
 		Dealer:     dealer,
@@ -45,7 +67,7 @@ func Start(in io.Reader, out io.Writer) {
 	for {
 		outcome := InProgress
 		blackjack.PlaceBet(blackjack.Player)
-		blackjack.DealCards()
+		blackjack.DealFirstCards()
 		if playerScore := GetCardsTotal(blackjack.Player.Cards); playerScore >= 21 {
 			// player hit 21 points or is over, in either case
 			// they have no more moves to play, so stand
@@ -58,28 +80,35 @@ func Start(in io.Reader, out io.Writer) {
 		}
 
 		for outcome == InProgress {
-			move := blackjack.ChooseNextMove()
+			for outcome == InProgress {
 
-			switch move {
-			case HIT:
-				outcome = blackjack.PlayerHit()
-			case STAND:
-				outcome = blackjack.PlayerStand()
-			case DOUBLE:
-				outcome = blackjack.PlayerDouble()
+				move := blackjack.ChooseNextMove()
+
+				switch move {
+				case HIT:
+					outcome = blackjack.PlayerHit()
+				case STAND:
+					outcome = blackjack.PlayerStand()
+				case DOUBLE:
+					outcome = blackjack.PlayerDouble()
+				case SPLIT:
+					outcome = blackjack.PlayerSplit()
+				}
+
 			}
-		}
 
-		switch outcome {
-		case PlayerWon:
-			blackjack.PlayerWonHand()
-		case PlayerLost:
-			blackjack.PlayerLostHand()
-		case Standoff:
-			blackjack.Standoff()
-		}
+			switch outcome {
+			case PlayerWon:
+				blackjack.PlayerWonHand()
+			case PlayerLost:
+				blackjack.PlayerLostHand()
+			case Standoff:
+				blackjack.Standoff()
+			}
+			// case done skips the switch
 
-		blackjack.cleanup()
+			blackjack.cleanup()
+		}
 
 		if blackjack.Player.Cash == 0 {
 			fmt.Println("\n*******************************")
@@ -106,24 +135,43 @@ type Blackjack struct {
 	scanner *bufio.Scanner
 	// The rate a player's bet is payout at when they win a round
 	payoutRate payoutType
+	// If the current round is the result of a split
+	// TODO: refactor to be a getter taht looks at the length of player split cards
+	splitRound bool
 }
 
-func (bj *Blackjack) DealCards() {
+func (bj *Blackjack) DealPlayerCards(count int) {
+	cards := bj.Deck.Pop(count)
+	for _, c := range cards {
+		c.IsFaceUp = true
+
+	}
+
+	bj.Player.Cards = append(bj.Player.Cards, cards...)
+}
+
+func (bj *Blackjack) DealDealerCards(count int, isFaceUp bool) {
+	cards := bj.Deck.Pop(count)
+	for _, c := range cards {
+		c.IsFaceUp = isFaceUp
+	}
+
+	bj.Dealer.Cards = append(bj.Dealer.Cards, cards...)
+}
+
+func (bj *Blackjack) DealFirstCards() {
 	fmt.Println("\nDealing cards...")
 	// dealt in a loop so each player + dealer is given a card one after the other
 	// instead of dealing out a player entirely before moving to the next one
 	for i := 0; i < 2; i++ {
-		card := bj.Deck.Pop(1)[0]
-		card.IsFaceUp = true
+		bj.DealPlayerCards(1)
 
-		bj.Player.Cards = append(bj.Player.Cards, card)
-
-		card = bj.Deck.Pop(1)[0]
 		// dealer card only face up on first card dealt
 		if i == 0 {
-			card.IsFaceUp = true
+			bj.DealDealerCards(1, true)
+		} else {
+			bj.DealDealerCards(1, false)
 		}
-		bj.Dealer.Cards = append(bj.Dealer.Cards, card)
 	}
 
 	bj.PrintTableCards()
@@ -200,6 +248,14 @@ func (bj *Blackjack) PrintTableCards() {
 	out.WriteString(decks.PrettyPrintCards(bj.Player.Cards))
 	utils.FillTextAndPad(&out, 45, ' ', '*', "", "")
 	utils.FillTextAndPad(&out, 45, '*', '*', "", "")
+	utils.FillTextAndPad(
+		&out,
+		45,
+		'*',
+		'*',
+		fmt.Sprintf("%d/%d", bj.Deck.GetLength(), bj.Deck.DeckCount*52),
+		"middle",
+	)
 	utils.FillTextAndPad(&out, 45, '*', '*', "", "")
 
 	fmt.Println(out.String())
@@ -251,7 +307,7 @@ const (
 	STAND  = "s"
 	DOUBLE = "d"
 	// TODO: implement
-	SPLIT = "p"
+	SPLIT = "l"
 	// TODO: implement; early and late surrenders? Make it a config options at the beginning screen
 	SURRENDER = 'r'
 )
@@ -261,11 +317,18 @@ func (bj *Blackjack) GetOtherMoves() string {
 
 	move := ""
 
+	// if original two cards dealt
 	if len(bj.Player.Cards) == 2 {
-		// if original two cards
+
 		playerTotal := GetCardsTotal(bj.Player.Cards)
 		if playerTotal == 9 || playerTotal == 10 || playerTotal == 11 {
 			move += DOUBLE
+		}
+
+		if bj.Player.Cards[0].Rank.Name == bj.Player.Cards[1].Rank.Name && !bj.splitRound {
+			// if the first two cards initially dealt are of same name
+			// can only split when player has no split cards
+			move += SPLIT
 		}
 	}
 
@@ -285,6 +348,22 @@ func (bj *Blackjack) ChooseNextMove() string {
 	| (h) |  (s)  |  (d)   |
 	------------------------
 		`
+	case SPLIT:
+		prompt = `
+	-----------------------
+	| HIT | STAND | SPLIT |
+	| (h) |  (s)  |  (l)  |
+	-----------------------
+		`
+
+	case DOUBLE + SPLIT:
+		prompt = `
+	--------------------------------
+	| HIT | STAND | DOUBLE | SPLIT |
+	| (h) |  (s)  |  (d)   |  (l)  |
+	--------------------------------
+		`
+
 	default:
 		prompt = `
 	---------------
@@ -321,15 +400,18 @@ const (
 	PlayerWon  RoundOutcome = 1
 	PlayerLost RoundOutcome = 2
 	Standoff   RoundOutcome = 3
+	Done       RoundOutcome = 4
 )
 
-func (bj *Blackjack) PlayerStand() RoundOutcome {
+// Dealer goes through their turn of hitting/standing
+// Returns the score of the dealers hand
+func (bj *Blackjack) dealersTurn() (dealerScore int) {
 	// dealer turns over face down card
 	for _, card := range bj.Dealer.Cards {
 		card.IsFaceUp = true
 	}
 
-	dealerScore := GetCardsTotal(bj.Dealer.Cards)
+	dealerScore = GetCardsTotal(bj.Dealer.Cards)
 
 	// Check if the dealer has a soft 17 on the first two cards
 	// this is an ace + 6 which can either be 7 or 17, so force the
@@ -352,7 +434,11 @@ func (bj *Blackjack) PlayerStand() RoundOutcome {
 		// get the new score after the added card
 		dealerScore = GetCardsTotal(bj.Dealer.Cards)
 	}
+	return dealerScore
+}
 
+func (bj *Blackjack) PlayerStand() RoundOutcome {
+	dealerScore := bj.dealersTurn()
 	bj.PrintTableCards()
 
 	// check if dealer bust
@@ -367,6 +453,10 @@ func (bj *Blackjack) PlayerStand() RoundOutcome {
 	if dealerScore > playerScore {
 		outcome = PlayerLost
 	} else if dealerScore < playerScore {
+		if playerScore == 21 {
+			bj.payoutRate = blackjackRate
+			fmt.Println("BLACKJACK!!\nCollect your winnings at a rate of 1.5.")
+		}
 		outcome = PlayerWon
 	} else {
 		outcome = Standoff
@@ -399,11 +489,7 @@ func (bj *Blackjack) DealerBlackjackCheck() RoundOutcome {
 
 // Player hit
 func (bj *Blackjack) PlayerHit() (outcome RoundOutcome) {
-	card := bj.Deck.Pop(1)[0]
-	card.IsFaceUp = true
-
-	bj.Player.Cards = append(bj.Player.Cards, card)
-
+	bj.DealPlayerCards(1)
 	bj.PrintTableCards()
 
 	newTotal := GetCardsTotal(bj.Player.Cards)
@@ -445,6 +531,132 @@ func (bj *Blackjack) PlayerDouble() (outcome RoundOutcome) {
 	return bj.PlayerStand()
 }
 
+func (bj *Blackjack) PlayerSplit() (outcome RoundOutcome) {
+	// check if the user has enough money to do a split
+	// need enough cash to double to bet
+	if bj.Player.Cash < bj.Player.Bet {
+		fmt.Printf(
+			"You dont have enough cash to split.\nNeed $%d, but you only have $%d\n",
+			bj.Player.Bet*2,
+			bj.Player.Bet+bj.Player.Cash,
+		)
+		return InProgress
+	}
+
+	bj.splitRound = true
+
+	savedBet := bj.Player.Bet
+	// cards to be evaluated after both split cards have been finialized by player
+	var savedForEvaluation [][]*card.Card
+
+	bj.Player.MoveCardsToSplit()
+
+	for bj.Player.HasSplitCards() {
+		// if the bet was previously cleared pull money from player for next split card bet
+		if bj.Player.Bet == 0 {
+			bj.Player.Bet = savedBet
+			bj.Player.Cash -= savedBet
+		}
+
+		// move split card to players cards
+		bj.Player.NextSplitCard()
+
+		if bj.Player.Cards[0].Rank.Name == rank.Ace {
+			// ace cards only allowed one card on split
+			// deal card and add to pending array
+
+			bj.DealPlayerCards(1)
+			bj.PrintTableCards()
+
+			// prompt user to hit any key to continue
+			utils.EnterToContinue(bj.scanner)
+
+			savedForEvaluation = append(savedForEvaluation, bj.Player.Cards)
+			// assign new slice instead of reslice because need that slice in memory to maintain
+			// the same values so savedForEvaluation can be looped on later with the same values
+			// otherwise if reslice to {:0] it would overwrite the values
+			bj.Player.Cards = []*card.Card{}
+			continue
+		}
+
+		// draw one card and add to player cards
+		bj.DealPlayerCards(1)
+		bj.PrintTableCards()
+
+		localOutcome := InProgress
+		for localOutcome == InProgress {
+			move := bj.ChooseNextMove()
+			switch move {
+			case HIT:
+				// custom hit logic for split rounds
+				bj.DealPlayerCards(1)
+				bj.PrintTableCards()
+
+				newTotal := GetCardsTotal(bj.Player.Cards)
+
+				if newTotal > BLACKJACK {
+					// dont stand cause dealer doesnt need to hit
+					bj.PlayerLostHand()
+					bj.Deck.AddDiscardedCards(bj.Player.Cards)
+					bj.Player.Cards = []*card.Card{}
+					localOutcome = Done
+					continue
+				} else if newTotal == BLACKJACK {
+					// theres no blackjack rate during a split
+					savedForEvaluation = append(savedForEvaluation, bj.Player.Cards)
+					bj.Player.Cards = []*card.Card{}
+					localOutcome = Done
+				}
+			case STAND:
+				// custom stand logic for split rounds
+				savedForEvaluation = append(savedForEvaluation, bj.Player.Cards)
+
+				bj.Player.Cards = []*card.Card{}
+				localOutcome = Done
+			case DOUBLE:
+				// TODO: implement split double
+				// outcome = bj.PlayerDouble()
+				fmt.Println("Split double under construction. Try something else.")
+				localOutcome = InProgress
+			}
+		}
+	}
+
+	fmt.Println("Array contents: \n", utils.PrettyPrint(savedForEvaluation))
+	dealerTotal := bj.dealersTurn()
+	for idx, cardsArr := range savedForEvaluation {
+		if bj.Player.Bet == 0 {
+			bj.Player.Bet = savedBet
+			bj.Player.Cash -= savedBet
+		}
+
+		bj.Player.Cards = cardsArr
+		bj.PrintTableCards()
+
+		playerTotal := GetCardsTotal(cardsArr)
+
+		if playerTotal > dealerTotal || dealerTotal > BLACKJACK {
+			bj.PlayerWonHand()
+		} else if dealerTotal > playerTotal {
+			bj.PlayerLostHand()
+		} else if dealerTotal == playerTotal {
+			bj.Standoff()
+		}
+
+		if idx != len(savedForEvaluation)-1 {
+			// don't show on the last item cause they'll see it anyways once split is finalized
+			// pause for user to look at at outcome
+			utils.EnterToContinue(bj.scanner)
+		}
+	}
+
+	bj.cleanup()
+
+	bj.splitRound = false
+
+	return Done
+}
+
 // Player has lost the hand, clean up for next deal
 func (bj *Blackjack) PlayerLostHand() {
 	fmt.Print("***  Dealer win!  ***\nCollecting all losing bets...\n\n")
@@ -482,6 +694,7 @@ func (bj *Blackjack) cleanup() {
 	clear(bj.Player.Cards)
 	// reslice so length of slice is now zero again
 	bj.Player.Cards = bj.Player.Cards[:0]
+
 	// same as above
 	bj.Deck.AddDiscardedCards(bj.Dealer.Cards)
 	clear(bj.Dealer.Cards)

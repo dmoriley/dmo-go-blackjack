@@ -350,8 +350,8 @@ func TestDoubleMoveAvailable(t *testing.T) {
 
 	actual := bj.GetOtherMoves()
 
-	if actual != "d" {
-		t.Fatalf("Next move is wrong. Expected %s but got %s", "d", actual)
+	if actual != DOUBLE {
+		t.Fatalf("Next move is wrong. Expected %s but got %s", DOUBLE, actual)
 	}
 
 }
@@ -419,6 +419,114 @@ func TestPlayerDouble(t *testing.T) {
 
 	if actual != PlayerWon {
 		t.Fatalf("Outcome is wrong. Expected %d but got %d", PlayerWon, actual)
+	}
+
+}
+
+func TestSplitMoveAvailable(t *testing.T) {
+	// split is valid when the first two cards dealt are the same rank
+
+	fourHearts, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
+	fourSpades, _ := card.NewCard(suit.Spades, rank.Four, 4, true)
+
+	playerCards := []*card.Card{
+		fourHearts, fourSpades,
+	}
+
+	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
+	seven, _ := card.NewCard(suit.Hearts, rank.Seven, 7, true)
+
+	// total of 12
+	dealerCards := []*card.Card{
+		five, seven,
+	}
+
+	bj := &Blackjack{
+		Player: &players.Player{
+			Cards: playerCards,
+			Name:  "player1",
+			Cash:  500,
+			Bet:   5,
+		},
+		Dealer: &players.Dealer{
+			Cards: dealerCards,
+		},
+		// should have minCardCount of 0 as 'zero' value for being unset
+		Deck: &decks.BlackjackDeck{
+			DeckCount: 1,
+			Deck: decks.Deck{
+				Cards: []*card.Card{
+					// first card out of the deck should be six
+					fourSpades,
+					five,
+					fourHearts,
+				},
+			},
+		},
+	}
+
+	if dt := GetCardsTotal(bj.Player.Cards); dt != 8 {
+		t.Fatalf("Card total not 8, got %d", dt)
+	}
+
+	actual := bj.GetOtherMoves()
+
+	if actual != SPLIT {
+		t.Fatalf("Next move is wrong. Expected %s but got %s", SPLIT, actual)
+	}
+
+}
+
+func TestSplitAndDoubleMoveAvailable(t *testing.T) {
+	// split is valid when the first two cards dealt are the same rank
+
+	fiveHearts, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
+	fiveSpades, _ := card.NewCard(suit.Spades, rank.Five, 5, true)
+
+	playerCards := []*card.Card{
+		fiveHearts, fiveSpades,
+	}
+
+	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
+	seven, _ := card.NewCard(suit.Hearts, rank.Seven, 7, true)
+
+	// total of 12
+	dealerCards := []*card.Card{
+		five, seven,
+	}
+
+	bj := &Blackjack{
+		Player: &players.Player{
+			Cards: playerCards,
+			Name:  "player1",
+			Cash:  500,
+			Bet:   5,
+		},
+		Dealer: &players.Dealer{
+			Cards: dealerCards,
+		},
+		// should have minCardCount of 0 as 'zero' value for being unset
+		Deck: &decks.BlackjackDeck{
+			DeckCount: 1,
+			Deck: decks.Deck{
+				Cards: []*card.Card{
+					// first card out of the deck should be six
+					fiveSpades,
+					five,
+					fiveHearts,
+				},
+			},
+		},
+	}
+
+	if dt := GetCardsTotal(bj.Player.Cards); dt != 10 {
+		t.Fatalf("Card total not 10, got %d", dt)
+	}
+
+	actual := bj.GetOtherMoves()
+
+	if actual != DOUBLE+SPLIT {
+		t.Fatalf("Next move is wrong. Expected %s but got %s", DOUBLE+SPLIT, actual)
 	}
 
 }
