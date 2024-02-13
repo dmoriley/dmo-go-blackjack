@@ -8,7 +8,6 @@ import (
 	"blackjack/game/players"
 	"blackjack/game/utils"
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -16,9 +15,8 @@ import (
 
 const (
 	// Max value to win or bust
-	BLACKJACK        = 21
-	PROMPT           = "=> "
-	TABLE_CHAR_WIDTH = 45
+	BLACKJACK = 21
+	PROMPT    = "=> "
 )
 
 // Start the game
@@ -69,7 +67,7 @@ func Start(in io.Reader, out io.Writer) {
 		outcome := InProgress
 		blackjack.PlaceBet(blackjack.Player)
 		blackjack.DealFirstCards()
-		if playerScore := GetCardsTotal(blackjack.Player.Cards); playerScore >= 21 {
+		if playerScore := utils.CalcCardsTotal(blackjack.Player.Cards); playerScore >= 21 {
 			// player hit 21 points or is over, in either case
 			// they have no more moves to play, so stand
 			if playerScore == BLACKJACK {
@@ -212,99 +210,16 @@ func (bj *Blackjack) PlaceBet(player *players.Player) {
 }
 
 func (bj *Blackjack) PrintTableCards() {
-	var out bytes.Buffer
-
-	out.WriteString("\n")
-	utils.FillTextAndPad(&out, TABLE_CHAR_WIDTH, '*', '*', "", "")
-	utils.FillTextAndPad(&out, TABLE_CHAR_WIDTH, '*', '*', "Table Cards", "middle")
-	utils.FillTextAndPad(&out, TABLE_CHAR_WIDTH, '*', '*', "", "")
-	utils.FillTextAndPad(&out, TABLE_CHAR_WIDTH, ' ', '*', "", "")
-	utils.FillTextAndPad(&out, TABLE_CHAR_WIDTH, ' ', '*', "Dealers cards", "left")
-	utils.FillTextAndPad(
-		&out,
-		TABLE_CHAR_WIDTH,
-		' ',
-		'*',
-		fmt.Sprintf("Total: %d", GetCardsTotal(bj.Dealer.Cards)),
-		"left",
-	)
-	utils.FillTextAndPad(&out, TABLE_CHAR_WIDTH, ' ', '*', "-------------", "left")
-	utils.FillTextAndPad(&out, TABLE_CHAR_WIDTH, ' ', '*', "", "")
-	out.WriteString(decks.PrettyPrintCards(bj.Dealer.Cards))
-	utils.FillTextAndPad(&out, TABLE_CHAR_WIDTH, ' ', '*', "", "")
-
-	// player name and card total
-	utils.FillTextAndPad(
-		&out,
-		TABLE_CHAR_WIDTH,
-		' ',
-		'*',
-		fmt.Sprintf("%s cards", bj.Player.Name),
-		"left",
-	)
-	utils.FillTextAndPad(
-		&out,
-		TABLE_CHAR_WIDTH,
-		' ',
-		'*',
-		fmt.Sprintf("Total: %d", GetCardsTotal(bj.Player.Cards)),
-		"left",
-	)
-
-	utils.FillTextAndPad(&out, TABLE_CHAR_WIDTH, ' ', '*', "-------------", "left")
-	utils.FillTextAndPad(&out, TABLE_CHAR_WIDTH, ' ', '*', "", "")
-	out.WriteString(decks.PrettyPrintCards(bj.Player.Cards))
-	utils.FillTextAndPad(&out, TABLE_CHAR_WIDTH, ' ', '*', "", "")
-	utils.FillTextAndPad(&out, TABLE_CHAR_WIDTH, '*', '*', "", "")
-	utils.FillTextAndPad(
-		&out,
-		TABLE_CHAR_WIDTH,
-		'*',
-		'*',
-		fmt.Sprintf("%d/%d", bj.Deck.GetLength(), bj.Deck.DeckCount*52),
-		"middle",
-	)
-	utils.FillTextAndPad(&out, TABLE_CHAR_WIDTH, '*', '*', "", "")
-
-	fmt.Println(out.String())
+	config := utils.NewPrintTableConfig(bj.Dealer, bj.Player, bj.Deck)
+	utils.PrintTable(config)
 }
 
-// Determine the card value total of the hand supplied
-// Does not count value of card that is not face up
-func GetCardsTotal(cards []*card.Card) int {
-	total := 0
-	aceCount := 0
+func (bj *Blackjack) PrintSplitRoundCards(round int) {
+	config := utils.NewPrintTableConfig(bj.Dealer, bj.Player, bj.Deck).
+		SetTitle("Table Split Round").
+		SetSubtitle(fmt.Sprintf("Hand: %d", round))
 
-	for _, card := range cards {
-		if !card.IsFaceUp {
-			// dont total cards that arent being shown
-			continue
-		}
-		switch card.Rank.Name {
-		case rank.Ace:
-			aceCount++
-		default:
-			total += card.Rank.Value
-		}
-	}
-
-	if aceCount == 1 {
-		if total+11 <= BLACKJACK {
-			total += 11
-		} else {
-			total += 1
-		}
-	} else if aceCount > 1 {
-		// check if one ace can have the value of 11
-		if total+11+(aceCount-1) <= BLACKJACK {
-			total += (11 + (aceCount - 1))
-		} else {
-			// all aces must have a value of one
-			total += aceCount
-		}
-	}
-
-	return total
+	utils.PrintTable(config)
 }
 
 const (
@@ -328,7 +243,7 @@ func (bj *Blackjack) GetOtherMoves() string {
 	// if original two cards dealt
 	if len(bj.Player.Cards) == 2 {
 
-		playerTotal := GetCardsTotal(bj.Player.Cards)
+		playerTotal := utils.CalcCardsTotal(bj.Player.Cards)
 		if playerTotal == 9 || playerTotal == 10 || playerTotal == 11 {
 			move += DOUBLE
 		}
@@ -419,7 +334,7 @@ func (bj *Blackjack) dealersTurn() (dealerScore int) {
 		card.IsFaceUp = true
 	}
 
-	dealerScore = GetCardsTotal(bj.Dealer.Cards)
+	dealerScore = utils.CalcCardsTotal(bj.Dealer.Cards)
 
 	// Check if the dealer has a soft 17 on the first two cards
 	// this is an ace + 6 which can either be 7 or 17, so force the
@@ -429,7 +344,7 @@ func (bj *Blackjack) dealersTurn() (dealerScore int) {
 		card.IsFaceUp = true
 		// deal the dealer one card
 		bj.Dealer.Cards = append(bj.Dealer.Cards, card)
-		dealerScore = GetCardsTotal(bj.Dealer.Cards)
+		dealerScore = utils.CalcCardsTotal(bj.Dealer.Cards)
 	}
 
 	// when the dealer hits a score of 17 or more, auto stand
@@ -440,7 +355,7 @@ func (bj *Blackjack) dealersTurn() (dealerScore int) {
 		// deal the dealer one card
 		bj.Dealer.Cards = append(bj.Dealer.Cards, card)
 		// get the new score after the added card
-		dealerScore = GetCardsTotal(bj.Dealer.Cards)
+		dealerScore = utils.CalcCardsTotal(bj.Dealer.Cards)
 	}
 	return dealerScore
 }
@@ -454,7 +369,7 @@ func (bj *Blackjack) PlayerStand() RoundOutcome {
 		return PlayerWon
 	}
 
-	playerScore := GetCardsTotal(bj.Player.Cards)
+	playerScore := utils.CalcCardsTotal(bj.Player.Cards)
 
 	var outcome RoundOutcome
 	// compare scores to see who won
@@ -480,8 +395,8 @@ func (bj *Blackjack) DealerBlackjackCheck() RoundOutcome {
 		card.IsFaceUp = true
 	}
 
-	dealerScore := GetCardsTotal(bj.Dealer.Cards)
-	playerScore := GetCardsTotal(bj.Player.Cards)
+	dealerScore := utils.CalcCardsTotal(bj.Dealer.Cards)
+	playerScore := utils.CalcCardsTotal(bj.Player.Cards)
 
 	bj.PrintTableCards()
 
@@ -500,7 +415,7 @@ func (bj *Blackjack) PlayerHit() (outcome RoundOutcome) {
 	bj.DealPlayerCards(1)
 	bj.PrintTableCards()
 
-	newTotal := GetCardsTotal(bj.Player.Cards)
+	newTotal := utils.CalcCardsTotal(bj.Player.Cards)
 
 	outcome = InProgress
 
@@ -541,7 +456,6 @@ func (bj *Blackjack) PlayerDouble() (outcome RoundOutcome) {
 
 func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 	// save player name for later
-	playerName := bj.Player.Name
 	// check if the user has enough money to do a split
 	// need enough cash to double to bet
 	if bj.Player.Cash < bj.Player.Bet {
@@ -568,7 +482,6 @@ func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 
 	for idx := 1; bj.Player.HasSplitCards(); idx++ {
 		// potential hand to save
-		bj.Player.Name = fmt.Sprintf("Split hand %d | %s", idx, playerName)
 		saved := struct {
 			id  int
 			cds []*card.Card
@@ -590,7 +503,7 @@ func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 			// deal card and add to pending array
 
 			bj.DealPlayerCards(1)
-			bj.PrintTableCards()
+			bj.PrintSplitRoundCards(idx)
 
 			// prompt user to hit any key to continue
 			utils.EnterToContinue(bj.scanner)
@@ -606,7 +519,7 @@ func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 
 		// draw one card and add to player cards
 		bj.DealPlayerCards(1)
-		bj.PrintTableCards()
+		bj.PrintSplitRoundCards(idx)
 
 		localOutcome := InProgress
 		for localOutcome == InProgress {
@@ -615,9 +528,9 @@ func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 			case HIT:
 				// custom hit logic for split rounds
 				bj.DealPlayerCards(1)
-				bj.PrintTableCards()
+				bj.PrintSplitRoundCards(idx)
 
-				newTotal := GetCardsTotal(bj.Player.Cards)
+				newTotal := utils.CalcCardsTotal(bj.Player.Cards)
 
 				if newTotal > BLACKJACK {
 					// dont stand cause dealer doesnt need to hit
@@ -656,26 +569,15 @@ func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 	dealerTotal := bj.dealersTurn()
 	for idx, savedStruct := range savedForEvaluation {
 
-		bj.Player.Name = fmt.Sprintf("Split hand %d | %s", idx+1, playerName)
 		if bj.Player.Bet == 0 {
 			bj.Player.Bet = savedBet
 			bj.Player.Cash -= savedBet
 		}
 
-		// fmt.Println("")
-		// utils.PrintTextAndPad(TABLE_CHAR_WIDTH, '*', '*', "", "", true)
-		// utils.PrintTextAndPad(
-		// 	TABLE_CHAR_WIDTH,
-		// 	' ',
-		// 	'*',
-		// 	fmt.Sprintf("Split hand %d", savedStruct.id),
-		// 	"middle",
-		// 	false,
-		// )
 		bj.Player.Cards = savedStruct.cds
-		bj.PrintTableCards()
+		bj.PrintSplitRoundCards(idx)
 
-		playerTotal := GetCardsTotal(savedStruct.cds)
+		playerTotal := utils.CalcCardsTotal(savedStruct.cds)
 
 		if playerTotal > dealerTotal || dealerTotal > BLACKJACK {
 			bj.PlayerWonHand()
@@ -695,9 +597,6 @@ func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 	bj.cleanup()
 
 	bj.splitRound = false
-
-	// restore player name
-	bj.Player.Name = playerName
 
 	return Done
 }

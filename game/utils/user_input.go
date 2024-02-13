@@ -8,32 +8,33 @@ import (
 	"strings"
 )
 
-type InputConfig struct {
+// configuration pattern
+type inputConfig struct {
 	scanner        *bufio.Scanner
 	expectedValues []string
 	anyKey         bool
 }
 
-func NewInputConfig(scanner *bufio.Scanner) *InputConfig {
-	return &InputConfig{
+func NewInputConfig(scanner *bufio.Scanner) *inputConfig {
+	return &inputConfig{
 		scanner:        scanner,
 		anyKey:         false,
 		expectedValues: []string{},
 	}
 }
 
-func (ic *InputConfig) SetExpectedValues(values ...string) *InputConfig {
+func (ic *inputConfig) SetExpectedValues(values ...string) *inputConfig {
 	ic.expectedValues = values
 	return ic
 }
 
 // Set any key to continue
-func (ic *InputConfig) SetAnyKey(anyKey bool) *InputConfig {
+func (ic *inputConfig) SetAnyKey(anyKey bool) *inputConfig {
 	ic.anyKey = anyKey
 	return ic
 }
 
-func GetUserInput(config *InputConfig) (string, error) {
+func GetUserInput(config *inputConfig) (string, error) {
 
 	scanned := config.scanner.Scan()
 	if !scanned && config.scanner.Err() == nil {
@@ -73,7 +74,7 @@ func EnterToContinue(scanner *bufio.Scanner) {
 }
 
 // Parse user intput for a number
-func GetUserInputInteger(config *InputConfig) (int, error) {
+func GetUserInputInteger(config *inputConfig) (int, error) {
 	text, err := GetUserInput(config)
 	if err != nil {
 		return 0, err
