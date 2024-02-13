@@ -2,6 +2,7 @@ package main
 
 import (
 	"blackjack/game"
+	"blackjack/game/utils"
 	"fmt"
 	"os"
 	"os/user"
@@ -14,6 +15,7 @@ func main() {
 		panic(err)
 	}
 
+	utils.ClearTerminal()
 	fmt.Println(`
   ____  _            _     _            _    
  | __ )| | __ _  ___| | __(_) __ _  ___| | __
