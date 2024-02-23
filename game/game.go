@@ -3,7 +3,6 @@ package game
 import (
 	"blackjack/card"
 	"blackjack/card/rank"
-	"blackjack/card/suit"
 	"blackjack/decks"
 	"blackjack/game/players"
 	"blackjack/game/utils"
@@ -33,27 +32,6 @@ func Start(in io.Reader, out io.Writer) {
 	config := decks.NewBlackjackDeckConfig().WithNumberOfDecks(4)
 	deck := decks.NewBlackjackDeck(config)
 	deck.Shuffle(5)
-
-	ten1, _ := card.NewCard(suit.Clubs, rank.Ten, 10, true)
-	ten2, _ := card.NewCard(suit.Hearts, rank.Ten, 10, true)
-
-	two, _ := card.NewCard(suit.Hearts, rank.Two, 2, true)
-	three, _ := card.NewCard(suit.Hearts, rank.Three, 3, true)
-	four, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
-	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
-
-	ds := []*card.Card{
-		ten1,
-		two,
-		ten2,
-		three,
-		four,
-		five,
-	}
-
-	ds = append(ds, deck.Cards...)
-
-	deck.Cards = ds
 
 	blackjack := &Blackjack{
 		Dealer:     dealer,
