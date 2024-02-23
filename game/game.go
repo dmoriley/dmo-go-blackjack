@@ -210,11 +210,14 @@ func (bj *Blackjack) PlaceBet(player *players.Player) {
 }
 
 func (bj *Blackjack) PrintTableCards() {
+	utils.ClearTerminal()
 	config := utils.NewPrintTableConfig(bj.Dealer, bj.Player, bj.Deck)
 	utils.PrintTable(config)
 }
 
 func (bj *Blackjack) PrintSplitRoundCards(round int) {
+
+	utils.ClearTerminal()
 	config := utils.NewPrintTableConfig(bj.Dealer, bj.Player, bj.Deck).
 		SetTitle("Table Split Round").
 		SetSubtitle(fmt.Sprintf("Hand: %d", round))
@@ -503,7 +506,7 @@ func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 			// deal card and add to pending array
 
 			bj.DealPlayerCards(1)
-			bj.PrintSplitRoundCards(idx)
+			bj.PrintSplitRoundCards(saved.id)
 
 			// prompt user to hit any key to continue
 			utils.EnterToContinue(bj.scanner)
@@ -519,7 +522,7 @@ func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 
 		// draw one card and add to player cards
 		bj.DealPlayerCards(1)
-		bj.PrintSplitRoundCards(idx)
+		bj.PrintSplitRoundCards(saved.id)
 
 		localOutcome := InProgress
 		for localOutcome == InProgress {
@@ -528,7 +531,7 @@ func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 			case HIT:
 				// custom hit logic for split rounds
 				bj.DealPlayerCards(1)
-				bj.PrintSplitRoundCards(idx)
+				bj.PrintSplitRoundCards(saved.id)
 
 				newTotal := utils.CalcCardsTotal(bj.Player.Cards)
 
@@ -575,7 +578,7 @@ func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 		}
 
 		bj.Player.Cards = savedStruct.cds
-		bj.PrintSplitRoundCards(idx)
+		bj.PrintSplitRoundCards(savedStruct.id)
 
 		playerTotal := utils.CalcCardsTotal(savedStruct.cds)
 
@@ -645,5 +648,4 @@ func (bj *Blackjack) cleanup() {
 	bj.Dealer.Cards = bj.Dealer.Cards[:0]
 
 	bj.payoutRate = normalRate
-	utils.ClearTerminal()
 }
