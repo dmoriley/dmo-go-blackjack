@@ -3,23 +3,26 @@ package utils
 import (
 	"bufio"
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 )
 
-// configuration pattern
+// Configuration struct. Setting the expectedPattern overrides expceted values.
 type inputConfig struct {
-	scanner        *bufio.Scanner
-	expectedValues []string
-	anyKey         bool
+	scanner         *bufio.Scanner
+	expectedValues  []string
+	anyKey          bool
+	expectedPattern string
 }
 
 func NewInputConfig(scanner *bufio.Scanner) *inputConfig {
 	return &inputConfig{
-		scanner:        scanner,
-		anyKey:         false,
-		expectedValues: []string{},
+		scanner:         scanner,
+		anyKey:          false,
+		expectedValues:  []string{},
+		expectedPattern: "",
 	}
 }
 
@@ -29,8 +32,13 @@ func (ic *inputConfig) SetExpectedValues(values ...string) *inputConfig {
 }
 
 // Set any key to continue
-func (ic *inputConfig) SetAnyKey(anyKey bool) *inputConfig {
-	ic.anyKey = anyKey
+func (ic *inputConfig) SetAnyKey() *inputConfig {
+	ic.anyKey = true
+	return ic
+}
+
+func (ic *inputConfig) SetExpectedPattern(pattern string) *inputConfig {
+	ic.expectedPattern = pattern
 	return ic
 }
 
@@ -51,14 +59,25 @@ func GetUserInput(config *inputConfig) (string, error) {
 	trimmed := strings.TrimSpace(config.scanner.Text())
 
 	if config.anyKey {
-		return "", nil
+		return trimmed, nil
 	}
 
 	if len(trimmed) == 0 {
 		return "", fmt.Errorf("No input provided")
 	}
 
-	if len(config.expectedValues) > 0 {
+	if len(config.expectedPattern) > 0 {
+		match, err := regexp.MatchString(config.expectedPattern, trimmed)
+
+		if err != nil {
+			return "", err
+		}
+
+		if !match {
+			return "", fmt.Errorf("Unexpected value entered: %q", trimmed)
+		}
+
+	} else if len(config.expectedValues) > 0 {
 		// expected values provided, check if input is included
 		if !slices.Contains(config.expectedValues, trimmed) {
 			return "", fmt.Errorf("Unexpected value entered: %q", trimmed)
@@ -69,7 +88,7 @@ func GetUserInput(config *inputConfig) (string, error) {
 
 func EnterToContinue(scanner *bufio.Scanner) {
 	fmt.Print("\nPress ENTER to continue...")
-	inputConfig := NewInputConfig(scanner).SetAnyKey(true)
+	inputConfig := NewInputConfig(scanner).SetAnyKey()
 	GetUserInput(inputConfig)
 }
 

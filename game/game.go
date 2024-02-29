@@ -87,13 +87,33 @@ func Start(in io.Reader, out io.Writer) {
 			blackjack.cleanup()
 		}
 
+		continuePrompt := `
+	----------------------
+	| CASHOUT | CONTINUE |  
+	|   (c)   |  (enter) |
+	----------------------
+		`
+		fmt.Println(continuePrompt)
+		fmt.Print(PROMPT)
+		continueConfig := utils.NewInputConfig(blackjack.scanner).SetAnyKey()
+		res, _ := utils.GetUserInput(continueConfig)
+
+		if res == "C" || res == "c" {
+			fmt.Printf(
+				"\nCongratulations %s! You're cashing out with $%d",
+				blackjack.Player.Name,
+				blackjack.Player.Cash,
+			)
+			break
+		}
+
 		if blackjack.Player.Cash == 0 {
 			fmt.Println("\n*******************************")
 			fmt.Println("Busted! You're out of money.")
 			break
 		}
 	}
-	fmt.Println("*******************************")
+	fmt.Println("\n*******************************")
 	fmt.Println("Thanks for playing! Come back with more cash.")
 }
 
