@@ -208,6 +208,7 @@ func (bj *Blackjack) PlaceBet(player *players.Player) RoundOutcome {
 	fmt.Printf("%s has $%d in wallet\n", player.Name, player.Cash)
 
 	var bet int
+	previousBet := player.PreviousBet
 
 	for {
 		fmt.Print("Place your bet or \".cashout\": $")
@@ -228,15 +229,17 @@ func (bj *Blackjack) PlaceBet(player *players.Player) RoundOutcome {
 			case ".help", ".h":
 				// TODO: formatted help
 				helpPrompt := `
-	--------------------------
-	|    CASHOUT   |   HELP  |
-	|  (.cashout)  | (.help) |
-	--------------------------
+	-------------------------------------
+	| LAST BET |    CASHOUT   |   HELP  |
+	|    (.)   |  (.cashout)  | (.help) |
+	-------------------------------------
 		`
 				fmt.Println(helpPrompt)
 				continue
-			case ".cashout", ".c":
+			case ".cashout", ".c", ".exit", ".quit":
 				return Done
+			case ".", "..":
+				assertedBet = previousBet
 			default:
 				fmt.Println("Invalid command. Try \".help\" for more options")
 				continue
@@ -252,6 +255,9 @@ func (bj *Blackjack) PlaceBet(player *players.Player) RoundOutcome {
 				player.Cash,
 			)
 			continue
+		} else if bet == 0 {
+			fmt.Println("Bet cannot be $0. Please try a different bet.")
+			continue
 		}
 		// bet valid
 		break
@@ -259,6 +265,7 @@ func (bj *Blackjack) PlaceBet(player *players.Player) RoundOutcome {
 
 	player.Cash = player.Cash - bet
 	player.Bet = bet
+	player.PreviousBet = bet
 
 	fmt.Printf("Remaining in wallet: $%d\n", player.Cash)
 	return InProgress
