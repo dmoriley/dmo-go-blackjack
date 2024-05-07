@@ -132,9 +132,10 @@ type Blackjack struct {
 	scanner *bufio.Scanner
 	// The rate a player's bet is payout at when they win a round
 	payoutRate payoutType
-	// If the current round is the result of a split
-	// TODO: refactor to be a getter taht looks at the length of player split cards
-	splitRound bool
+}
+
+func (bj *Blackjack) isSplitRound() bool {
+	return bj.Player.HasSplitCards()
 }
 
 func (bj *Blackjack) DealPlayerCards(count int) {
@@ -249,7 +250,7 @@ func (bj *Blackjack) GetOtherMoves() string {
 			move += DOUBLE
 		}
 
-		if bj.Player.Cards[0].Rank.Name == bj.Player.Cards[1].Rank.Name && !bj.splitRound {
+		if bj.Player.Cards[0].Rank.Name == bj.Player.Cards[1].Rank.Name && !bj.isSplitRound() {
 			// if the first two cards initially dealt are of same name
 			// can only split when player has no split cards
 			move += SPLIT
@@ -456,7 +457,6 @@ func (bj *Blackjack) PlayerDouble() (outcome RoundOutcome) {
 }
 
 func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
-	// save player name for later
 	// check if the user has enough money to do a split
 	// need enough cash to double to bet
 	if bj.Player.Cash < bj.Player.Bet {
@@ -468,11 +468,9 @@ func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 		return InProgress
 	}
 
-	bj.splitRound = true
-
 	savedBet := bj.Player.Bet
-	// cards to be evaluated after both split cards have been finalized by player
 
+	// cards to be evaluated after both split cards have been finalized by player
 	// slice of anonymous structs
 	var savedForEvaluation = []struct {
 		id  int
@@ -596,9 +594,6 @@ func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 	}
 
 	bj.cleanup()
-
-	bj.splitRound = false
-
 	return Done
 }
 

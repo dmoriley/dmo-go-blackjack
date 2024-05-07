@@ -12,7 +12,7 @@ type Player struct {
 
 // Move all cards to split cards
 func (p *Player) MoveCardsToSplit() {
-	// make splice cards new slice of cards
+	// make split cards new slice of cards
 	p.SplitCards = p.Cards[:]
 	// reslice cards just past length so its effectively empty
 	p.Cards = p.Cards[len(p.Cards):]
