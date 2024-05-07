@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -42,8 +43,15 @@ func Start(in io.Reader, out io.Writer) {
 	}
 
 	for {
-		outcome := InProgress
-		blackjack.PlaceBet(blackjack.Player)
+		outcome := blackjack.PlaceBet(blackjack.Player)
+		if outcome == Done {
+			fmt.Printf(
+				"\nCongratulations %s! You're cashing out with $%d",
+				blackjack.Player.Name,
+				blackjack.Player.Cash,
+			)
+			break
+		}
 		blackjack.DealFirstCards()
 		if playerScore := utils.CalcCardsTotal(blackjack.Player.Cards); playerScore >= 21 {
 			// player hit 21 points or is over, in either case
@@ -87,25 +95,25 @@ func Start(in io.Reader, out io.Writer) {
 			blackjack.cleanup()
 		}
 
-		continuePrompt := `
-	----------------------
-	| CASHOUT | CONTINUE |  
-	|   (c)   |  (enter) |
-	----------------------
-		`
-		fmt.Println(continuePrompt)
-		fmt.Print(PROMPT)
-		continueConfig := utils.NewInputConfig(blackjack.scanner).SetAnyKey()
-		res, _ := utils.GetUserInput(continueConfig)
+		/* continuePrompt := `
+		----------------------
+		| CASHOUT | CONTINUE |
+		|   (c)   |  (enter) |
+		----------------------
+			`
+			fmt.Println(continuePrompt)
+			fmt.Print(PROMPT)
+			continueConfig := utils.NewInputConfig(blackjack.scanner).SetAnyKey()
+			res, _ := utils.GetUserInput(continueConfig)
 
-		if res == "C" || res == "c" {
-			fmt.Printf(
-				"\nCongratulations %s! You're cashing out with $%d",
-				blackjack.Player.Name,
-				blackjack.Player.Cash,
-			)
-			break
-		}
+			if res == "C" || res == "c" {
+				fmt.Printf(
+					"\nCongratulations %s! You're cashing out with $%d",
+					blackjack.Player.Name,
+					blackjack.Player.Cash,
+				)
+				break
+			} */
 
 		if blackjack.Player.Cash == 0 {
 			fmt.Println("\n*******************************")
@@ -134,7 +142,28 @@ type Blackjack struct {
 	payoutRate payoutType
 }
 
-func (bj *Blackjack) isSplitRound() bool {
+func (bj *Blackjack) GetNextBetInput() (any, error) {
+	inputConfig := utils.NewInputConfig(bj.scanner)
+	text, err := utils.GetUserInput(inputConfig)
+	if err != nil {
+		return 0, err
+	}
+
+	// check if the text starts with a period for a command
+	if strings.HasPrefix(text, ".") {
+		return text, nil
+	} else {
+		fmt.Println("does not have a . prefix")
+	}
+
+	integer, err := strconv.Atoi(text)
+	if err != nil {
+		return 0, err
+	}
+	return integer, nil
+}
+
+func (bj *Blackjack) IsSplitRound() bool {
 	return bj.Player.HasSplitCards()
 }
 
@@ -175,21 +204,47 @@ func (bj *Blackjack) DealFirstCards() {
 	bj.PrintTableCards()
 }
 
-func (bj *Blackjack) PlaceBet(player *players.Player) {
+func (bj *Blackjack) PlaceBet(player *players.Player) RoundOutcome {
 	fmt.Printf("%s has $%d in wallet\n", player.Name, player.Cash)
 
 	var bet int
-	var err error
-	inputConfig := utils.NewInputConfig(bj.scanner)
 
 	for {
-		fmt.Print("Place your bet: $")
-		bet, err = utils.GetUserInputInteger(inputConfig)
+		fmt.Print("Place your bet or \".cashout\": $")
+		val, err := bj.GetNextBetInput()
 		if err != nil {
 			fmt.Println(err.Error())
 			fmt.Println("That bet is invalid. Please try again.")
 			continue
 		}
+
+		// check if the type return from input is an int
+		assertedBet, ok := val.(int)
+		if !ok {
+			// reassign to asserted
+			assertedCommand := val.(string)
+			// is a string, check if its a valid command
+			switch assertedCommand {
+			case ".help", ".h":
+				// TODO: formatted help
+				helpPrompt := `
+	--------------------------
+	|    CASHOUT   |   HELP  |
+	|  (.cashout)  | (.help) |
+	--------------------------
+		`
+				fmt.Println(helpPrompt)
+				continue
+			case ".cashout", ".c":
+				return Done
+			default:
+				fmt.Println("Invalid command. Try \".help\" for more options")
+				continue
+			}
+		}
+
+		// is an int, assign to bet
+		bet = assertedBet
 
 		if bet > player.Cash {
 			fmt.Printf(
@@ -206,6 +261,7 @@ func (bj *Blackjack) PlaceBet(player *players.Player) {
 	player.Bet = bet
 
 	fmt.Printf("Remaining in wallet: $%d\n", player.Cash)
+	return InProgress
 }
 
 func (bj *Blackjack) PrintTableCards() {
@@ -250,7 +306,7 @@ func (bj *Blackjack) GetOtherMoves() string {
 			move += DOUBLE
 		}
 
-		if bj.Player.Cards[0].Rank.Name == bj.Player.Cards[1].Rank.Name && !bj.isSplitRound() {
+		if bj.Player.Cards[0].Rank.Name == bj.Player.Cards[1].Rank.Name && !bj.IsSplitRound() {
 			// if the first two cards initially dealt are of same name
 			// can only split when player has no split cards
 			move += SPLIT
