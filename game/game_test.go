@@ -6,6 +6,7 @@ import (
 	"blackjack/card/suit"
 	"blackjack/decks"
 	"blackjack/game/players"
+	"blackjack/game/utils"
 	"testing"
 )
 
@@ -18,7 +19,7 @@ func TestTenCards(t *testing.T) {
 		jack,
 	}
 	want := 10
-	got := GetCardsTotal(cards)
+	got := utils.CalcCardsTotal(cards)
 
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
@@ -26,7 +27,7 @@ func TestTenCards(t *testing.T) {
 
 	cards = append(cards, queen)
 	want = 20
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
@@ -34,12 +35,11 @@ func TestTenCards(t *testing.T) {
 
 	cards = append(cards, king)
 	want = 30
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
 	}
-
 }
 
 func TestNumberCards(t *testing.T) {
@@ -55,56 +55,56 @@ func TestNumberCards(t *testing.T) {
 
 	cards = append(cards, two)
 	want := 2
-	got := GetCardsTotal(cards)
+	got := utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
 	}
 
 	cards = append(cards, three)
 	want += 3
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
 	}
 
 	cards = append(cards, four)
 	want += 4
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
 	}
 
 	cards = append(cards, five)
 	want += 5
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
 	}
 
 	cards = append(cards, six)
 	want += 6
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
 	}
 
 	cards = append(cards, seven)
 	want += 7
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
 	}
 
 	cards = append(cards, eight)
 	want += 8
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
 	}
 
 	cards = append(cards, nine)
 	want += 9
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
 	}
@@ -117,14 +117,14 @@ func TestAceCard(t *testing.T) {
 	}
 
 	want := 11
-	got := GetCardsTotal(cards)
+	got := utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
 	}
 
 	cards = append(cards, ace)
 	want = 12
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
 	}
@@ -135,7 +135,7 @@ func TestAceCard(t *testing.T) {
 		want++
 	}
 
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 	// want is 21
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
@@ -145,7 +145,7 @@ func TestAceCard(t *testing.T) {
 	// cause one of them being 11 would push it over bust limit
 	cards = append(cards, ace)
 	want = 12
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
 	}
@@ -171,7 +171,7 @@ func TestCombiningAllCards(t *testing.T) {
 	cards = append(cards, king)
 
 	want := 21
-	got := GetCardsTotal(cards)
+	got := utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
 	}
@@ -179,7 +179,7 @@ func TestCombiningAllCards(t *testing.T) {
 	// adding another ace should change the value of both ace's to 1's
 	cards = append(cards, ace)
 	want = 10 + 1 + 1 // 12
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
 	}
@@ -189,7 +189,7 @@ func TestCombiningAllCards(t *testing.T) {
 	}
 
 	want = 10 + 6 + 1 // 17
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf(
 			"Card total wrong. Want = %d, got = %d\n%s",
@@ -197,7 +197,6 @@ func TestCombiningAllCards(t *testing.T) {
 			got,
 			decks.PrintCards(cards, true),
 		)
-
 	}
 
 	cards = []*card.Card{
@@ -205,7 +204,7 @@ func TestCombiningAllCards(t *testing.T) {
 	}
 
 	want = 2 + 3 + 5 + 10 + 1 // 21
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf(
 			"Card total wrong. Want = %d, got = %d\n%s",
@@ -213,7 +212,6 @@ func TestCombiningAllCards(t *testing.T) {
 			got,
 			decks.PrintCards(cards, true),
 		)
-
 	}
 
 	cards = []*card.Card{
@@ -221,7 +219,7 @@ func TestCombiningAllCards(t *testing.T) {
 	}
 
 	want = 10 + 10 + 1
-	got = GetCardsTotal(cards)
+	got = utils.CalcCardsTotal(cards)
 	if want != got {
 		t.Errorf(
 			"Card total wrong. Want = %d, got = %d\n%s",
@@ -229,12 +227,10 @@ func TestCombiningAllCards(t *testing.T) {
 			got,
 			decks.PrintCards(cards, true),
 		)
-
 	}
 }
 
 func TestDealerSoft17(t *testing.T) {
-
 	jack, _ := card.NewCard(suit.Hearts, rank.Jack, 2, true)
 	king, _ := card.NewCard(suit.Hearts, rank.King, 10, true)
 
@@ -253,7 +249,7 @@ func TestDealerSoft17(t *testing.T) {
 		six,
 	}
 
-	if dt := GetCardsTotal(dealerCards); dt != 17 {
+	if dt := utils.CalcCardsTotal(dealerCards); dt != 17 {
 		t.Fatalf("Card total not 17, got %d", dt)
 	}
 
@@ -291,7 +287,7 @@ func TestDealerSoft17(t *testing.T) {
 	}
 
 	expectedTotal := 1 + six.Rank.Value + six.Rank.Value + five.Rank.Value
-	if dt := GetCardsTotal(bj.Dealer.Cards); dt != expectedTotal {
+	if dt := utils.CalcCardsTotal(bj.Dealer.Cards); dt != expectedTotal {
 		t.Fatalf("Card total not %d, got %d", expectedTotal, dt)
 	}
 
@@ -344,7 +340,7 @@ func TestDoubleMoveAvailable(t *testing.T) {
 		},
 	}
 
-	if dt := GetCardsTotal(bj.Player.Cards); dt != 10 {
+	if dt := utils.CalcCardsTotal(bj.Player.Cards); dt != 10 {
 		t.Fatalf("Card total not 10, got %d", dt)
 	}
 
@@ -353,7 +349,6 @@ func TestDoubleMoveAvailable(t *testing.T) {
 	if actual != DOUBLE {
 		t.Fatalf("Next move is wrong. Expected %s but got %s", DOUBLE, actual)
 	}
-
 }
 
 func TestPlayerDouble(t *testing.T) {
@@ -420,7 +415,6 @@ func TestPlayerDouble(t *testing.T) {
 	if actual != PlayerWon {
 		t.Fatalf("Outcome is wrong. Expected %d but got %d", PlayerWon, actual)
 	}
-
 }
 
 func TestSplitMoveAvailable(t *testing.T) {
@@ -465,7 +459,7 @@ func TestSplitMoveAvailable(t *testing.T) {
 		},
 	}
 
-	if dt := GetCardsTotal(bj.Player.Cards); dt != 8 {
+	if dt := utils.CalcCardsTotal(bj.Player.Cards); dt != 8 {
 		t.Fatalf("Card total not 8, got %d", dt)
 	}
 
@@ -474,7 +468,6 @@ func TestSplitMoveAvailable(t *testing.T) {
 	if actual != SPLIT {
 		t.Fatalf("Next move is wrong. Expected %s but got %s", SPLIT, actual)
 	}
-
 }
 
 func TestSplitAndDoubleMoveAvailable(t *testing.T) {
@@ -519,7 +512,7 @@ func TestSplitAndDoubleMoveAvailable(t *testing.T) {
 		},
 	}
 
-	if dt := GetCardsTotal(bj.Player.Cards); dt != 10 {
+	if dt := utils.CalcCardsTotal(bj.Player.Cards); dt != 10 {
 		t.Fatalf("Card total not 10, got %d", dt)
 	}
 
@@ -528,7 +521,6 @@ func TestSplitAndDoubleMoveAvailable(t *testing.T) {
 	if actual != DOUBLE+SPLIT {
 		t.Fatalf("Next move is wrong. Expected %s but got %s", DOUBLE+SPLIT, actual)
 	}
-
 }
 
 func TestBlackjackReturnRate(t *testing.T) {
@@ -577,7 +569,7 @@ func TestBlackjackReturnRate(t *testing.T) {
 		},
 	}
 
-	if dt := GetCardsTotal(bj.Player.Cards); dt != 20 {
+	if dt := utils.CalcCardsTotal(bj.Player.Cards); dt != 20 {
 		t.Fatalf("Card total wrong. Got 21, got %d", dt)
 	}
 
