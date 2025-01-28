@@ -527,13 +527,13 @@ func TestBlackjackReturnRate(t *testing.T) {
 	king, _ := card.NewCard(suit.Hearts, rank.King, 10, true)
 	queen, _ := card.NewCard(suit.Hearts, rank.Queen, 10, true)
 
-	// total 21
+	// total 20
 	playerCards := []*card.Card{
 		queen,
 		king,
 	}
 
-	jack, _ := card.NewCard(suit.Hearts, rank.Jack, 2, true)
+	jack, _ := card.NewCard(suit.Hearts, rank.Jack, 10, true)
 	six, _ := card.NewCard(suit.Hearts, rank.Six, 6, true)
 
 	// should be a soft 16
@@ -546,12 +546,16 @@ func TestBlackjackReturnRate(t *testing.T) {
 	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
 	ace, _ := card.NewCard(suit.Hearts, rank.Ace, 1, true)
 
+	playerStartingCash := 500
+	playerBet := 50.0
+	expectedBlackjackPayout := playerBet * 2.5 // payout ratio of 3:2
+
 	bj := &Blackjack{
 		Player: &players.Player{
 			Cards: playerCards,
 			Name:  "player1",
-			Cash:  500,
-			Bet:   50,
+			Cash:  playerStartingCash,
+			Bet:   int(playerBet),
 		},
 		Dealer: &players.Dealer{
 			Cards: dealerCards,
@@ -585,7 +589,8 @@ func TestBlackjackReturnRate(t *testing.T) {
 
 	bj.PlayerWonHand()
 
-	if bj.Player.Cash != 575 {
-		t.Fatalf("Total cash is wrong after payout. Should have %d but got %d", 575, bj.Player.Cash)
+	expectedCash := playerStartingCash + int(expectedBlackjackPayout)
+	if bj.Player.Cash != expectedCash {
+		t.Fatalf("Total cash is wrong after payout. Should have %d but got %d", expectedCash, bj.Player.Cash)
 	}
 }

@@ -171,7 +171,6 @@ func (bj *Blackjack) DealPlayerCards(count int) {
 	cards := bj.Deck.Pop(count)
 	for _, c := range cards {
 		c.IsFaceUp = true
-
 	}
 
 	bj.Player.Cards = append(bj.Player.Cards, cards...)
@@ -278,7 +277,6 @@ func (bj *Blackjack) PrintTableCards() {
 }
 
 func (bj *Blackjack) PrintSplitRoundCards(round int) {
-
 	utils.ClearTerminal()
 	config := utils.NewPrintTableConfig(bj.Dealer, bj.Player, bj.Deck).
 		SetTitle("Table Split Round").
@@ -302,7 +300,6 @@ const (
 
 // Check if the player has other move options aside from hit and stand
 func (bj *Blackjack) GetOtherMoves() string {
-
 	move := ""
 
 	// if original two cards dealt
@@ -535,7 +532,7 @@ func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 
 	// cards to be evaluated after both split cards have been finalized by player
 	// slice of anonymous structs
-	var savedForEvaluation = []struct {
+	savedForEvaluation := []struct {
 		id  int
 		cds []*card.Card
 	}{}
@@ -673,9 +670,9 @@ func (bj *Blackjack) PlayerWonHand() {
 		// effective rate or 1
 		bj.Player.Cash += (bj.Player.Bet * 2)
 	} else {
-		// else is blackjack rate so rate is 1.5
-		// *15 /10 is the same as doing * 1.5 but we avoid floats
-		bj.Player.Cash += (bj.Player.Bet * 15 / 10)
+		// else is blackjack rate so rate is 3:2
+		// *25 /10 is the same as doing * 2.5 but we avoid floats
+		bj.Player.Cash += (bj.Player.Bet * 25 / 10)
 	}
 	bj.Player.Bet = 0
 }
