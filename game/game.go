@@ -65,35 +65,32 @@ func Start(in io.Reader, out io.Writer) {
 		}
 
 		for outcome == InProgress {
-			for outcome == InProgress {
 
-				move := blackjack.ChooseNextMove()
+			move := blackjack.ChooseNextMove()
 
-				switch move {
-				case HIT:
-					outcome = blackjack.PlayerHit()
-				case STAND:
-					outcome = blackjack.PlayerStand()
-				case DOUBLE:
-					outcome = blackjack.PlayerDouble()
-				case SPLIT:
-					outcome = blackjack.PlayerSplit()
-				}
-
+			switch move {
+			case HIT:
+				outcome = blackjack.PlayerHit()
+			case STAND:
+				outcome = blackjack.PlayerStand()
+			case DOUBLE:
+				outcome = blackjack.PlayerDouble()
+			case SPLIT:
+				outcome = blackjack.PlayerSplit()
 			}
 
-			switch outcome {
-			case PlayerWon:
-				blackjack.PlayerWonHand()
-			case PlayerLost:
-				blackjack.PlayerLostHand()
-			case Standoff:
-				blackjack.Standoff()
-			}
-			// case done skips the switch
-
-			blackjack.cleanup()
 		}
+
+		switch outcome {
+		case PlayerWon:
+			blackjack.PlayerWonHand()
+		case PlayerLost:
+			blackjack.PlayerLostHand()
+		case Standoff:
+			blackjack.Standoff()
+		}
+
+		blackjack.cleanup()
 
 		/* continuePrompt := `
 		----------------------
