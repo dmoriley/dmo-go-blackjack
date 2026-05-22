@@ -27,7 +27,6 @@ func TestBlankUserInput(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error but got none. Actual value received is: |%s|", actual)
 	}
-
 }
 
 func TestUnrestrictedTextInput(t *testing.T) {
@@ -37,7 +36,6 @@ func TestUnrestrictedTextInput(t *testing.T) {
 
 	config := NewInputConfig(scanner)
 	actual, err := GetUserInput(config)
-
 	if err != nil {
 		t.Fatalf("Got error %q. Expected none.", err.Error())
 	}
@@ -54,7 +52,6 @@ func TestTrimmingTextInput(t *testing.T) {
 
 	config := NewInputConfig(scanner)
 	actual, err := GetUserInput(config)
-
 	if err != nil {
 		t.Fatalf("Got error %q. Expected none.", err.Error())
 	}
@@ -74,7 +71,6 @@ func TestRestrictingTextInput(t *testing.T) {
 	scanner := bufio.NewScanner(buf)
 	config := NewInputConfig(scanner).SetExpectedValues(inputRestrictions...)
 	actual, err := GetUserInput(config)
-
 	if err != nil {
 		t.Fatalf("Got error %q. Expected none.", err.Error())
 	}
@@ -90,7 +86,7 @@ func TestRestrictingTextInput(t *testing.T) {
 	buf = strings.NewReader(expected)
 	scanner = bufio.NewScanner(buf)
 	config = NewInputConfig(scanner).SetExpectedValues(inputRestrictions...)
-	actual, err = GetUserInput(config)
+	_, err = GetUserInput(config)
 
 	if err == nil {
 		t.Fatalf("Expected error but got none.")
@@ -104,13 +100,12 @@ func TestUnrestrictedIntegerInput(t *testing.T) {
 
 	config := NewInputConfig(scanner)
 	actual, err := GetUserInputInteger(config)
-
 	if err != nil {
 		t.Fatalf("Got error %q. Expected none.", err.Error())
 	}
 
 	if conv, _ := strconv.Atoi(expected); actual != conv {
-		t.Fatalf("Result wrong. Expected %q, but got %q", expected, actual)
+		t.Fatalf("Result wrong. Expected %q, but got %d", expected, actual)
 	}
 }
 
@@ -123,9 +118,8 @@ func TestSupplyingNonIntegerForIntergerInput(t *testing.T) {
 	actual, err := GetUserInputInteger(config)
 
 	if err == nil {
-		t.Fatalf("Expected error but got none. Actual value received is: %q", actual)
+		t.Fatalf("Expected error but got none. Actual value received is: %d", actual)
 	}
-
 }
 
 func TestRestrictedIntegerInput(t *testing.T) {
@@ -138,7 +132,6 @@ func TestRestrictedIntegerInput(t *testing.T) {
 	scanner := bufio.NewScanner(buf)
 	config := NewInputConfig(scanner).SetExpectedValues(inputRestrictions...)
 	actual, err := GetUserInput(config)
-
 	if err != nil {
 		t.Fatalf("Got error %q. Expected none.", err.Error())
 	}
@@ -154,7 +147,7 @@ func TestRestrictedIntegerInput(t *testing.T) {
 	buf = strings.NewReader(expected)
 	scanner = bufio.NewScanner(buf)
 	config = NewInputConfig(scanner).SetExpectedValues(inputRestrictions...)
-	actual, err = GetUserInput(config)
+	_, err = GetUserInput(config)
 
 	if err == nil {
 		t.Fatalf("Expected error but got none.")
