@@ -1,10 +1,12 @@
+// Package card provides types and helpers for playing cards
 package card
 
 import (
-	"blackjack/card/rank"
-	"blackjack/card/suit"
 	"bytes"
 	"fmt"
+
+	"blackjack/card/rank"
+	"blackjack/card/suit"
 )
 
 func NewCard(suitInput string, rankNameInput string, cardValue int, isFaceUp bool) (*Card, error) {
@@ -35,25 +37,25 @@ type Card struct {
 	IsFaceUp bool
 }
 
-func (c *Card) Debug() string {
+func (c Card) Debug() string {
 	var out bytes.Buffer
 
 	out.WriteString("{")
-	out.WriteString(fmt.Sprintf("%s of %s", c.Rank.Name, c.Suit))
-	out.WriteString(fmt.Sprintf(", value: %d", c.Rank.Value))
-	out.WriteString(fmt.Sprintf(", IsFaceUp: %t", c.IsFaceUp))
+	fmt.Fprintf(&out, "%s of %s", c.Rank.Name, c.Suit)
+	fmt.Fprintf(&out, ", value: %d", c.Rank.Value)
+	fmt.Fprintf(&out, ", IsFaceUp: %t", c.IsFaceUp)
 	out.WriteString("}")
 
 	return out.String()
 }
 
-func (c *Card) Inspect() string {
+func (c Card) Inspect() string {
 	var out bytes.Buffer
 
 	if c.IsFaceUp {
 		out.WriteString("{")
-		out.WriteString(fmt.Sprintf("%s of %s", c.Rank.Name, c.Suit))
-		out.WriteString(fmt.Sprintf(", value: %d", c.Rank.Value))
+		fmt.Fprintf(&out, "%s of %s", c.Rank.Name, c.Suit)
+		fmt.Fprintf(&out, ", value: %d", c.Rank.Value)
 		out.WriteString("}")
 	} else {
 		out.WriteString("{")

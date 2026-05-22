@@ -1,3 +1,4 @@
+// Package rank provides types and helpers for card rank
 package rank
 
 import (
@@ -54,6 +55,6 @@ func NewRank(rankName string, value int) (*Rank, error) {
 	}, nil
 }
 
-func (r *Rank) Inspect() string {
+func (r Rank) Inspect() string {
 	return fmt.Sprintf("{ rank: %s, value: %d }", r.Name, r.Value)
 }

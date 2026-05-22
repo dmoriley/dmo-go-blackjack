@@ -1,3 +1,4 @@
+// Package suit provides types and helpers for card suits
 package suit
 
 import "fmt"
