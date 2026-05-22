@@ -1,16 +1,18 @@
+// Package game contains engine logic to run the blackjack game
 package game
 
 import (
-	"blackjack/card"
-	"blackjack/card/rank"
-	"blackjack/decks"
-	"blackjack/game/players"
-	"blackjack/game/utils"
 	"bufio"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
+
+	"blackjack/card"
+	"blackjack/card/rank"
+	"blackjack/decks"
+	"blackjack/game/players"
+	"blackjack/game/utils"
 )
 
 const (
@@ -130,6 +132,7 @@ const (
 )
 
 // TODO: constructor function for this structure, try to use either Configuration pattern or dependency injection
+
 type Blackjack struct {
 	Player  *players.Player
 	Dealer  *players.Dealer
@@ -186,7 +189,7 @@ func (bj *Blackjack) DealFirstCards() {
 	fmt.Println("\nDealing cards...")
 	// dealt in a loop so each player + dealer is given a card one after the other
 	// instead of dealing out a player entirely before moving to the next one
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		bj.DealPlayerCards(1)
 
 		// dealer card only face up on first card dealt
@@ -295,7 +298,7 @@ const (
 	SURRENDER = 'r'
 )
 
-// Check if the player has other move options aside from hit and stand
+// GetOtherMoves Check if the player has other move options aside from hit and stand
 func (bj *Blackjack) GetOtherMoves() string {
 	move := ""
 
@@ -447,7 +450,7 @@ func (bj *Blackjack) PlayerStand() RoundOutcome {
 	return outcome
 }
 
-// Player was dealt a natural blackjack, check if the dealer also has one
+// DealerBlackjackCheck Player was dealt a natural blackjack, check if the dealer also has one
 func (bj *Blackjack) DealerBlackjackCheck() RoundOutcome {
 	// dealer turns over face down card
 	for _, card := range bj.Dealer.Cards {
@@ -469,7 +472,7 @@ func (bj *Blackjack) DealerBlackjackCheck() RoundOutcome {
 	return outcome
 }
 
-// Player hit
+// PlayerHit player performs a hit
 func (bj *Blackjack) PlayerHit() (outcome RoundOutcome) {
 	bj.DealPlayerCards(1)
 	bj.PrintTableCards()
@@ -654,7 +657,7 @@ func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
 	return Done
 }
 
-// Player has lost the hand, clean up for next deal
+// PlayerLostHand Player has lost the hand, clean up for next deal
 func (bj *Blackjack) PlayerLostHand() {
 	fmt.Print("***  Dealer win!  ***\nCollecting all losing bets...\n\n")
 	// Player loses the bet
@@ -674,7 +677,7 @@ func (bj *Blackjack) PlayerWonHand() {
 	bj.Player.Bet = 0
 }
 
-// Player and dealer have the same card total
+// Standoff Player and dealer have the same card total
 func (bj *Blackjack) Standoff() {
 	fmt.Print("Push! Returning all bets...\n\n")
 	// player looses nothing, add bet back to cash
