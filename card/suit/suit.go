@@ -10,11 +10,11 @@ const (
 	Clubs    = "Clubs"
 )
 
-var Suits = map[string]bool{
-	Diamonds: true,
-	Hearts:   true,
-	Spades:   true,
-	Clubs:    true,
+var Suits = map[string]struct{}{
+	Diamonds: {},
+	Hearts:   {},
+	Spades:   {},
+	Clubs:    {},
 }
 
 func NewSuit(suit string) (string, error) {
