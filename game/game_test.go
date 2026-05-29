@@ -1,596 +1,486 @@
 package game
 
 import (
+	"bytes"
+	"strings"
+	"testing"
+
 	"blackjack/card"
 	"blackjack/card/rank"
 	"blackjack/card/suit"
 	"blackjack/decks"
-	"blackjack/game/players"
-	"blackjack/game/utils"
-	"testing"
 )
 
-func TestTenCards(t *testing.T) {
-	jack, _ := card.NewCard(suit.Hearts, rank.Jack, 10, true)
-	queen, _ := card.NewCard(suit.Spades, rank.Queen, 10, true)
-	king, _ := card.NewCard(suit.Diamonds, rank.King, 10, true)
+func TestNaturalBlackjackPaysThreeToTwo(t *testing.T) {
+	engine := newTestEngine(t, 500,
+		newCard(t, suit.Hearts, rank.Ace, 1, false),
+		newCard(t, suit.Spades, rank.Five, 5, false),
+		newCard(t, suit.Diamonds, rank.King, 10, false),
+		newCard(t, suit.Clubs, rank.Nine, 9, false),
+	)
 
-	cards := []*card.Card{
-		jack,
-	}
-	want := 10
-	got := utils.CalcCardsTotal(cards)
-
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
+	result, err := engine.PlaceBet(50)
+	if err != nil {
+		t.Fatalf("PlaceBet returned error: %v", err)
 	}
 
-	cards = append(cards, queen)
-	want = 20
-	got = utils.CalcCardsTotal(cards)
+	assertSnapshotPhase(t, result.Snapshot, PhaseRoundResult)
+	assertHandResolvedEvent(t, result.Events, HandResolvedEvent{
+		HandIndex:   0,
+		Outcome:     OutcomeWon,
+		PlayerTotal: 21,
+		DealerTotal: 14,
+		Bet:         50,
+		Payout:      125,
+		Blackjack:   true,
+	})
 
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
-	}
-
-	cards = append(cards, king)
-	want = 30
-	got = utils.CalcCardsTotal(cards)
-
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
+	if result.Snapshot.Cash != 575 {
+		t.Fatalf("cash wrong after natural blackjack. want 575 got %d", result.Snapshot.Cash)
 	}
 }
 
-func TestNumberCards(t *testing.T) {
-	cards := []*card.Card{}
-	two, _ := card.NewCard(suit.Hearts, rank.Two, 2, true)
-	three, _ := card.NewCard(suit.Hearts, rank.Three, 3, true)
-	four, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
-	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
-	six, _ := card.NewCard(suit.Hearts, rank.Six, 6, true)
-	seven, _ := card.NewCard(suit.Hearts, rank.Seven, 7, true)
-	eight, _ := card.NewCard(suit.Hearts, rank.Eight, 8, true)
-	nine, _ := card.NewCard(suit.Hearts, rank.Nine, 9, true)
+func TestHitToTwentyOnePaysEvenMoney(t *testing.T) {
+	engine := newTestEngine(t, 500,
+		newCard(t, suit.Hearts, rank.Queen, 10, false),
+		newCard(t, suit.Spades, rank.Six, 6, false),
+		newCard(t, suit.Diamonds, rank.King, 10, false),
+		newCard(t, suit.Clubs, rank.Five, 5, false),
+		newCard(t, suit.Hearts, rank.Ace, 1, false),
+		newCard(t, suit.Spades, rank.Six, 6, false),
+	)
 
-	cards = append(cards, two)
-	want := 2
-	got := utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
+	if _, err := engine.PlaceBet(50); err != nil {
+		t.Fatalf("PlaceBet returned error: %v", err)
 	}
 
-	cards = append(cards, three)
-	want += 3
-	got = utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
+	result, err := engine.ApplyMove(MoveHit)
+	if err != nil {
+		t.Fatalf("ApplyMove returned error: %v", err)
 	}
 
-	cards = append(cards, four)
-	want += 4
-	got = utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
+	assertSnapshotPhase(t, result.Snapshot, PhaseRoundResult)
+	resolved := assertResolvedEventOutcome(t, result.Events, OutcomeWon)
+	if resolved.Blackjack {
+		t.Fatalf("hit to 21 should not count as blackjack")
 	}
-
-	cards = append(cards, five)
-	want += 5
-	got = utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
+	if resolved.Payout != 100 {
+		t.Fatalf("hit to 21 payout wrong. want 100 got %d", resolved.Payout)
 	}
-
-	cards = append(cards, six)
-	want += 6
-	got = utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
-	}
-
-	cards = append(cards, seven)
-	want += 7
-	got = utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
-	}
-
-	cards = append(cards, eight)
-	want += 8
-	got = utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
-	}
-
-	cards = append(cards, nine)
-	want += 9
-	got = utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
+	if result.Snapshot.Cash != 550 {
+		t.Fatalf("cash wrong after hit to 21. want 550 got %d", result.Snapshot.Cash)
 	}
 }
 
-func TestAceCard(t *testing.T) {
-	ace, _ := card.NewCard(suit.Hearts, rank.Ace, 1, true)
-	cards := []*card.Card{
-		ace,
+func TestDealerBlackjackBeatsPlayer(t *testing.T) {
+	engine := newTestEngine(t, 500,
+		newCard(t, suit.Hearts, rank.Ten, 10, false),
+		newCard(t, suit.Spades, rank.Ace, 1, false),
+		newCard(t, suit.Diamonds, rank.Nine, 9, false),
+		newCard(t, suit.Clubs, rank.King, 10, false),
+	)
+
+	result, err := engine.PlaceBet(50)
+	if err != nil {
+		t.Fatalf("PlaceBet returned error: %v", err)
 	}
 
-	want := 11
-	got := utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
+	resolved := assertResolvedEventOutcome(t, result.Events, OutcomeLost)
+	if resolved.Blackjack {
+		t.Fatalf("dealer blackjack should not mark player blackjack")
 	}
-
-	cards = append(cards, ace)
-	want = 12
-	got = utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
-	}
-
-	// increment it past 21
-	for i := 0; i < 9; i++ {
-		cards = append(cards, ace)
-		want++
-	}
-
-	got = utils.CalcCardsTotal(cards)
-	// want is 21
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
-	}
-
-	// adding one more ace should make that 12 aces, so all aces at that point should be value of one
-	// cause one of them being 11 would push it over bust limit
-	cards = append(cards, ace)
-	want = 12
-	got = utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
+	if result.Snapshot.Cash != 450 {
+		t.Fatalf("cash wrong after dealer blackjack. want 450 got %d", result.Snapshot.Cash)
 	}
 }
 
-func TestCombiningAllCards(t *testing.T) {
-	cards := []*card.Card{}
-	ace, _ := card.NewCard(suit.Hearts, rank.Ace, 1, true)
-	two, _ := card.NewCard(suit.Hearts, rank.Two, 2, true)
-	three, _ := card.NewCard(suit.Hearts, rank.Three, 3, true)
-	// four, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
-	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
-	six, _ := card.NewCard(suit.Hearts, rank.Six, 6, true)
-	// seven, _ := card.NewCard(suit.Hearts, rank.Seven, 7, true)
-	// eight, _ := card.NewCard(suit.Hearts, rank.Eight, 8, true)
-	// nine, _ := card.NewCard(suit.Hearts, rank.Nine, 9, true)
-	jack, _ := card.NewCard(suit.Hearts, rank.Jack, 10, true)
-	queen, _ := card.NewCard(suit.Spades, rank.Queen, 10, true)
-	king, _ := card.NewCard(suit.Diamonds, rank.King, 10, true)
+func TestDealerBlackjackPushesPlayerNatural(t *testing.T) {
+	engine := newTestEngine(t, 500,
+		newCard(t, suit.Hearts, rank.Ace, 1, false),
+		newCard(t, suit.Spades, rank.Ace, 1, false),
+		newCard(t, suit.Diamonds, rank.King, 10, false),
+		newCard(t, suit.Clubs, rank.King, 10, false),
+	)
 
-	// ace with ten card should be 21
-	cards = append(cards, ace)
-	cards = append(cards, king)
-
-	want := 21
-	got := utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
+	result, err := engine.PlaceBet(50)
+	if err != nil {
+		t.Fatalf("PlaceBet returned error: %v", err)
 	}
 
-	// adding another ace should change the value of both ace's to 1's
-	cards = append(cards, ace)
-	want = 10 + 1 + 1 // 12
-	got = utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf("Card total wrong. Want = %d, got = %d", want, got)
+	resolved := assertResolvedEventOutcome(t, result.Events, OutcomePush)
+	if resolved.Payout != 50 {
+		t.Fatalf("push payout wrong. want 50 got %d", resolved.Payout)
 	}
-
-	cards = []*card.Card{
-		queen, six, ace,
-	}
-
-	want = 10 + 6 + 1 // 17
-	got = utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf(
-			"Card total wrong. Want = %d, got = %d\n%s",
-			want,
-			got,
-			decks.PrintCards(cards, true),
-		)
-	}
-
-	cards = []*card.Card{
-		two, three, five, jack, ace,
-	}
-
-	want = 2 + 3 + 5 + 10 + 1 // 21
-	got = utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf(
-			"Card total wrong. Want = %d, got = %d\n%s",
-			want,
-			got,
-			decks.PrintCards(cards, true),
-		)
-	}
-
-	cards = []*card.Card{
-		king, queen, ace,
-	}
-
-	want = 10 + 10 + 1
-	got = utils.CalcCardsTotal(cards)
-	if want != got {
-		t.Errorf(
-			"Card total wrong. Want = %d, got = %d\n%s",
-			want,
-			got,
-			decks.PrintCards(cards, true),
-		)
+	if result.Snapshot.Cash != 500 {
+		t.Fatalf("cash wrong after blackjack push. want 500 got %d", result.Snapshot.Cash)
 	}
 }
 
-func TestDealerSoft17(t *testing.T) {
-	jack, _ := card.NewCard(suit.Hearts, rank.Jack, 2, true)
-	king, _ := card.NewCard(suit.Hearts, rank.King, 10, true)
+func TestDealerHitsSoftSeventeen(t *testing.T) {
+	engine := newTestEngine(t, 500,
+		newCard(t, suit.Hearts, rank.Jack, 10, false),
+		newCard(t, suit.Spades, rank.Ace, 1, false),
+		newCard(t, suit.Diamonds, rank.King, 10, false),
+		newCard(t, suit.Clubs, rank.Six, 6, false),
+		newCard(t, suit.Hearts, rank.Five, 5, false),
+		newCard(t, suit.Spades, rank.Nine, 9, false),
+	)
 
-	// total 20
-	playerCards := []*card.Card{
-		jack,
-		king,
+	if _, err := engine.PlaceBet(5); err != nil {
+		t.Fatalf("PlaceBet returned error: %v", err)
 	}
 
-	ace, _ := card.NewCard(suit.Hearts, rank.Ace, 1, true)
-	six, _ := card.NewCard(suit.Hearts, rank.Six, 6, true)
-
-	// should be a soft 17
-	dealerCards := []*card.Card{
-		ace,
-		six,
+	result, err := engine.ApplyMove(MoveStand)
+	if err != nil {
+		t.Fatalf("ApplyMove returned error: %v", err)
 	}
 
-	if dt := utils.CalcCardsTotal(dealerCards); dt != 17 {
-		t.Fatalf("Card total not 17, got %d", dt)
+	resolved := assertResolvedEventOutcome(t, result.Events, OutcomeLost)
+	if resolved.DealerTotal != 21 {
+		t.Fatalf("dealer total wrong after soft 17 draw sequence. want 21 got %d", resolved.DealerTotal)
 	}
-
-	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
-	four, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
-
-	bj := &Blackjack{
-		Player: &players.Player{
-			Cards: playerCards,
-			Name:  "player1",
-			Cash:  500,
-			Bet:   5,
-		},
-		Dealer: &players.Dealer{
-			Cards: dealerCards,
-		},
-		// should have minCardCount of 0 as 'zero' value for being unset
-		Deck: &decks.BlackjackDeck{
-			DeckCount: 1,
-			Deck: decks.Deck{
-				Cards: []*card.Card{
-					// first card out of the deck should be six
-					six,
-					five,
-					four,
-				},
-			},
-		},
+	if len(result.Snapshot.Dealer.Cards) != 4 {
+		t.Fatalf("dealer should have drawn to 4 cards, got %d", len(result.Snapshot.Dealer.Cards))
 	}
-
-	outcome := bj.PlayerStand()
-
-	if len(bj.Dealer.Cards) != 4 {
-		t.Fatalf("Dealer doesn't have 4 cards, got %d", len(bj.Dealer.Cards))
-	}
-
-	expectedTotal := 1 + six.Rank.Value + six.Rank.Value + five.Rank.Value
-	if dt := utils.CalcCardsTotal(bj.Dealer.Cards); dt != expectedTotal {
-		t.Fatalf("Card total not %d, got %d", expectedTotal, dt)
-	}
-
-	if outcome != PlayerLost {
-		t.Fatalf("Round outcome is wrong. Should have %d, but got %d", PlayerLost, outcome)
+	if result.Snapshot.Dealer.Total != 21 {
+		t.Fatalf("dealer snapshot total wrong. want 21 got %d", result.Snapshot.Dealer.Total)
 	}
 }
 
-func TestDoubleMoveAvailable(t *testing.T) {
-	// double is allowed when a intial two cards has a total of 9-11
+func TestDoubleMoveAvailableOnNineToElevenOnly(t *testing.T) {
+	engine := newTestEngine(t, 500,
+		newCard(t, suit.Hearts, rank.Four, 4, false),
+		newCard(t, suit.Spades, rank.Five, 5, false),
+		newCard(t, suit.Diamonds, rank.Six, 6, false),
+		newCard(t, suit.Clubs, rank.Seven, 7, false),
+	)
 
-	four, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
-	six, _ := card.NewCard(suit.Hearts, rank.Six, 6, true)
-
-	// total of 10
-	playerCards := []*card.Card{
-		four, six,
+	result, err := engine.PlaceBet(5)
+	if err != nil {
+		t.Fatalf("PlaceBet returned error: %v", err)
 	}
 
-	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
-	seven, _ := card.NewCard(suit.Hearts, rank.Seven, 7, true)
+	assertLegalMoves(t, result.Snapshot.LegalMoves, MoveHit, MoveStand, MoveDouble)
+}
 
-	// total of 12
-	dealerCards := []*card.Card{
-		five,
-		seven,
+func TestPlayerDoubleWinsAndDoublesBet(t *testing.T) {
+	engine := newTestEngine(t, 500,
+		newCard(t, suit.Hearts, rank.Four, 4, false),
+		newCard(t, suit.Spades, rank.Five, 5, false),
+		newCard(t, suit.Diamonds, rank.Six, 6, false),
+		newCard(t, suit.Clubs, rank.Seven, 7, false),
+		newCard(t, suit.Hearts, rank.Ace, 1, false),
+		newCard(t, suit.Spades, rank.Five, 5, false),
+	)
+
+	if _, err := engine.PlaceBet(5); err != nil {
+		t.Fatalf("PlaceBet returned error: %v", err)
 	}
 
-	bj := &Blackjack{
-		Player: &players.Player{
-			Cards: playerCards,
-			Name:  "player1",
-			Cash:  500,
-			Bet:   5,
-		},
-		Dealer: &players.Dealer{
-			Cards: dealerCards,
-		},
-		// should have minCardCount of 0 as 'zero' value for being unset
-		Deck: &decks.BlackjackDeck{
-			DeckCount: 1,
-			Deck: decks.Deck{
-				Cards: []*card.Card{
-					// first card out of the deck should be six
-					six,
-					five,
-					four,
-				},
-			},
-		},
+	result, err := engine.ApplyMove(MoveDouble)
+	if err != nil {
+		t.Fatalf("ApplyMove returned error: %v", err)
 	}
 
-	if dt := utils.CalcCardsTotal(bj.Player.Cards); dt != 10 {
-		t.Fatalf("Card total not 10, got %d", dt)
+	resolved := assertResolvedEventOutcome(t, result.Events, OutcomeWon)
+	if resolved.Bet != 10 {
+		t.Fatalf("double bet wrong. want 10 got %d", resolved.Bet)
 	}
-
-	actual := bj.GetOtherMoves()
-
-	if actual != DOUBLE {
-		t.Fatalf("Next move is wrong. Expected %s but got %s", DOUBLE, actual)
+	if result.Snapshot.Cash != 510 {
+		t.Fatalf("cash wrong after winning double. want 510 got %d", result.Snapshot.Cash)
 	}
 }
 
-func TestPlayerDouble(t *testing.T) {
-	four, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
-	six, _ := card.NewCard(suit.Hearts, rank.Six, 6, true)
+func TestDoubleDeniedWithoutEnoughCash(t *testing.T) {
+	engine := newTestEngine(t, 5,
+		newCard(t, suit.Hearts, rank.Four, 4, false),
+		newCard(t, suit.Spades, rank.Five, 5, false),
+		newCard(t, suit.Diamonds, rank.Six, 6, false),
+		newCard(t, suit.Clubs, rank.Seven, 7, false),
+	)
 
-	// total of 10
-	playerCards := []*card.Card{
-		four, six,
+	if _, err := engine.PlaceBet(5); err != nil {
+		t.Fatalf("PlaceBet returned error: %v", err)
 	}
 
-	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
-	seven, _ := card.NewCard(suit.Hearts, rank.Seven, 7, true)
-
-	// total of 12
-	dealerCards := []*card.Card{
-		five,
-		seven,
+	result, err := engine.ApplyMove(MoveDouble)
+	if err != nil {
+		t.Fatalf("ApplyMove returned error: %v", err)
 	}
 
-	ace, _ := card.NewCard(suit.Diamonds, rank.Ace, 1, true)
-	eight, _ := card.NewCard(suit.Diamonds, rank.Eight, 8, true)
-
-	originalBet := 5
-	originalCash := 500
-	bj := &Blackjack{
-		Player: &players.Player{
-			Cards: playerCards,
-			Name:  "player1",
-			Cash:  originalCash,
-			Bet:   originalBet,
-		},
-		Dealer: &players.Dealer{
-			Cards: dealerCards,
-		},
-		// should have minCardCount of 0 as 'zero' value for being unset
-		Deck: &decks.BlackjackDeck{
-			DeckCount: 1,
-			Deck: decks.Deck{
-				Cards: []*card.Card{
-					ace, // first card should be delt to player
-					eight,
-					five,
-					four,
-				},
-			},
-		},
+	assertSnapshotPhase(t, result.Snapshot, PhasePlayerTurn)
+	if len(result.Events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(result.Events))
 	}
-
-	actual := bj.PlayerDouble()
-
-	if bj.Player.Bet != originalBet*2 {
-		t.Fatalf("Double bet is wrong. Expected %d but got %d", originalBet, bj.Player.Bet)
+	denied, ok := result.Events[0].(ActionDeniedEvent)
+	if !ok {
+		t.Fatalf("expected ActionDeniedEvent, got %T", result.Events[0])
 	}
-
-	if bj.Player.Cash != originalCash-originalBet {
-		t.Fatalf(
-			"Cash is wrong after double bet. Expected %d but got %d",
-			originalCash,
-			bj.Player.Cash,
-		)
-	}
-
-	if actual != PlayerWon {
-		t.Fatalf("Outcome is wrong. Expected %d but got %d", PlayerWon, actual)
+	if denied.Move != MoveDouble {
+		t.Fatalf("wrong denied move. want %q got %q", MoveDouble, denied.Move)
 	}
 }
 
 func TestSplitMoveAvailable(t *testing.T) {
-	// split is valid when the first two cards dealt are the same rank
+	engine := newTestEngine(t, 500,
+		newCard(t, suit.Hearts, rank.Four, 4, false),
+		newCard(t, suit.Spades, rank.Five, 5, false),
+		newCard(t, suit.Diamonds, rank.Four, 4, false),
+		newCard(t, suit.Clubs, rank.Seven, 7, false),
+	)
 
-	fourHearts, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
-	fourSpades, _ := card.NewCard(suit.Spades, rank.Four, 4, true)
-
-	playerCards := []*card.Card{
-		fourHearts, fourSpades,
+	result, err := engine.PlaceBet(5)
+	if err != nil {
+		t.Fatalf("PlaceBet returned error: %v", err)
 	}
 
-	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
-	seven, _ := card.NewCard(suit.Hearts, rank.Seven, 7, true)
+	assertLegalMoves(t, result.Snapshot.LegalMoves, MoveHit, MoveStand, MoveSplit)
+}
 
-	// total of 12
-	dealerCards := []*card.Card{
-		five, seven,
+func TestSplitAndDoubleMoveAvailableTogether(t *testing.T) {
+	engine := newTestEngine(t, 500,
+		newCard(t, suit.Hearts, rank.Five, 5, false),
+		newCard(t, suit.Spades, rank.Five, 5, false),
+		newCard(t, suit.Diamonds, rank.Five, 5, false),
+		newCard(t, suit.Clubs, rank.Seven, 7, false),
+	)
+
+	result, err := engine.PlaceBet(5)
+	if err != nil {
+		t.Fatalf("PlaceBet returned error: %v", err)
 	}
 
-	bj := &Blackjack{
-		Player: &players.Player{
-			Cards: playerCards,
-			Name:  "player1",
-			Cash:  500,
-			Bet:   5,
-		},
-		Dealer: &players.Dealer{
-			Cards: dealerCards,
-		},
-		// should have minCardCount of 0 as 'zero' value for being unset
-		Deck: &decks.BlackjackDeck{
-			DeckCount: 1,
-			Deck: decks.Deck{
-				Cards: []*card.Card{
-					// first card out of the deck should be six
-					fourSpades,
-					five,
-					fourHearts,
-				},
-			},
-		},
+	assertLegalMoves(t, result.Snapshot.LegalMoves, MoveHit, MoveStand, MoveDouble, MoveSplit)
+}
+
+func TestSplitRoundDoesNotAllowDouble(t *testing.T) {
+	engine := newTestEngine(t, 500,
+		newCard(t, suit.Hearts, rank.Eight, 8, false),
+		newCard(t, suit.Spades, rank.Six, 6, false),
+		newCard(t, suit.Diamonds, rank.Eight, 8, false),
+		newCard(t, suit.Clubs, rank.Nine, 9, false),
+		newCard(t, suit.Hearts, rank.Three, 3, false),
+		newCard(t, suit.Spades, rank.Four, 4, false),
+	)
+
+	if _, err := engine.PlaceBet(10); err != nil {
+		t.Fatalf("PlaceBet returned error: %v", err)
 	}
 
-	if dt := utils.CalcCardsTotal(bj.Player.Cards); dt != 8 {
-		t.Fatalf("Card total not 8, got %d", dt)
+	result, err := engine.ApplyMove(MoveSplit)
+	if err != nil {
+		t.Fatalf("ApplyMove returned error: %v", err)
 	}
 
-	actual := bj.GetOtherMoves()
+	assertSnapshotPhase(t, result.Snapshot, PhasePlayerTurn)
+	if result.Snapshot.ActiveHandIndex != 0 {
+		t.Fatalf("expected first split hand active, got %d", result.Snapshot.ActiveHandIndex)
+	}
+	assertLegalMoves(t, result.Snapshot.LegalMoves, MoveHit, MoveStand)
+}
 
-	if actual != SPLIT {
-		t.Fatalf("Next move is wrong. Expected %s but got %s", SPLIT, actual)
+func TestSplitAcesAutoStandAfterOneCardEach(t *testing.T) {
+	engine := newTestEngine(t, 500,
+		newCard(t, suit.Hearts, rank.Ace, 1, false),
+		newCard(t, suit.Spades, rank.Six, 6, false),
+		newCard(t, suit.Diamonds, rank.Ace, 1, false),
+		newCard(t, suit.Clubs, rank.Eight, 8, false),
+		newCard(t, suit.Hearts, rank.Nine, 9, false),
+		newCard(t, suit.Spades, rank.Two, 2, false),
+		newCard(t, suit.Diamonds, rank.Seven, 7, false),
+	)
+
+	if _, err := engine.PlaceBet(10); err != nil {
+		t.Fatalf("PlaceBet returned error: %v", err)
+	}
+
+	result, err := engine.ApplyMove(MoveSplit)
+	if err != nil {
+		t.Fatalf("ApplyMove returned error: %v", err)
+	}
+
+	assertSnapshotPhase(t, result.Snapshot, PhaseRoundResult)
+	if len(result.Snapshot.PlayerHands) != 2 {
+		t.Fatalf("expected 2 split hands, got %d", len(result.Snapshot.PlayerHands))
+	}
+	for idx, hand := range result.Snapshot.PlayerHands {
+		if len(hand.Cards) != 2 {
+			t.Fatalf("split ace hand %d should have 2 cards, got %d", idx, len(hand.Cards))
+		}
+	}
+	assertEventReason(t, result.Events, HandFinishSplitAceAutoStand)
+}
+
+func TestReshuffleSurfacesAsEvent(t *testing.T) {
+	deck := decks.NewBlackjackDeck(decks.NewBlackjackDeckConfig().WithNumberOfDecks(1).WithMinCardCount(2))
+	used := deck.Cards[:5]
+	deck.Cards = deck.Cards[5:]
+	for _, dealtCard := range used {
+		dealtCard.IsFaceUp = true
+	}
+	deck.AddDiscardedCards(used)
+	deck.Cards = deck.Cards[:6]
+
+	engine, err := NewEngine(Config{
+		PlayerName:   "Tester",
+		StartingCash: 500,
+		Deck:         deck,
+	})
+	if err != nil {
+		t.Fatalf("NewEngine returned error: %v", err)
+	}
+
+	result, err := engine.PlaceBet(5)
+	if err != nil {
+		t.Fatalf("PlaceBet returned error: %v", err)
+	}
+
+	assertHasReshuffleEvent(t, result.Events)
+}
+
+func TestGameOverAfterLosingLastCash(t *testing.T) {
+	engine := newTestEngine(t, 5,
+		newCard(t, suit.Hearts, rank.Ten, 10, false),
+		newCard(t, suit.Spades, rank.Ten, 10, false),
+		newCard(t, suit.Diamonds, rank.Six, 6, false),
+		newCard(t, suit.Clubs, rank.King, 10, false),
+	)
+
+	if _, err := engine.PlaceBet(5); err != nil {
+		t.Fatalf("PlaceBet returned error: %v", err)
+	}
+
+	result, err := engine.ApplyMove(MoveStand)
+	if err != nil {
+		t.Fatalf("ApplyMove returned error: %v", err)
+	}
+	assertResolvedEventOutcome(t, result.Events, OutcomeLost)
+
+	continueResult, err := engine.Continue()
+	if err != nil {
+		t.Fatalf("Continue returned error: %v", err)
+	}
+
+	assertSnapshotPhase(t, continueResult.Snapshot, PhaseGameOver)
+	if len(continueResult.Events) != 1 {
+		t.Fatalf("expected one game-over event, got %d", len(continueResult.Events))
+	}
+	if _, ok := continueResult.Events[0].(GameOverEvent); !ok {
+		t.Fatalf("expected GameOverEvent, got %T", continueResult.Events[0])
 	}
 }
 
-func TestSplitAndDoubleMoveAvailable(t *testing.T) {
-	// split is valid when the first two cards dealt are the same rank
+func TestStartRendersRoundStatesOnce(t *testing.T) {
+	engine := newTestEngine(t, 500,
+		newCard(t, suit.Hearts, rank.Ten, 10, false),
+		newCard(t, suit.Spades, rank.Nine, 9, false),
+		newCard(t, suit.Diamonds, rank.Eight, 8, false),
+		newCard(t, suit.Clubs, rank.Seven, 7, false),
+		newCard(t, suit.Hearts, rank.King, 10, false),
+	)
 
-	fiveHearts, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
-	fiveSpades, _ := card.NewCard(suit.Spades, rank.Five, 5, true)
+	input := strings.NewReader("5\ns\n\n.cashout\n")
+	var output bytes.Buffer
 
-	playerCards := []*card.Card{
-		fiveHearts, fiveSpades,
+	if err := startWithEngine(input, &output, engine); err != nil {
+		t.Fatalf("startWithEngine returned error: %v", err)
 	}
 
-	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
-	seven, _ := card.NewCard(suit.Hearts, rank.Seven, 7, true)
-
-	// total of 12
-	dealerCards := []*card.Card{
-		five, seven,
+	if got := strings.Count(output.String(), "Table Cards"); got != 2 {
+		t.Fatalf("expected 2 table renders for one round, got %d\noutput:\n%s", got, output.String())
 	}
-
-	bj := &Blackjack{
-		Player: &players.Player{
-			Cards: playerCards,
-			Name:  "player1",
-			Cash:  500,
-			Bet:   5,
-		},
-		Dealer: &players.Dealer{
-			Cards: dealerCards,
-		},
-		// should have minCardCount of 0 as 'zero' value for being unset
-		Deck: &decks.BlackjackDeck{
-			DeckCount: 1,
-			Deck: decks.Deck{
-				Cards: []*card.Card{
-					// first card out of the deck should be six
-					fiveSpades,
-					five,
-					fiveHearts,
-				},
-			},
-		},
-	}
-
-	if dt := utils.CalcCardsTotal(bj.Player.Cards); dt != 10 {
-		t.Fatalf("Card total not 10, got %d", dt)
-	}
-
-	actual := bj.GetOtherMoves()
-
-	if actual != DOUBLE+SPLIT {
-		t.Fatalf("Next move is wrong. Expected %s but got %s", DOUBLE+SPLIT, actual)
+	if got := strings.Count(output.String(), "| HIT | STAND |"); got != 1 {
+		t.Fatalf("expected move prompt once, got %d\noutput:\n%s", got, output.String())
 	}
 }
 
-func TestBlackjackReturnRate(t *testing.T) {
-	king, _ := card.NewCard(suit.Hearts, rank.King, 10, true)
-	queen, _ := card.NewCard(suit.Hearts, rank.Queen, 10, true)
+func newTestEngine(t *testing.T, startingCash int, cards ...*card.Card) *Engine {
+	t.Helper()
 
-	// total 20
-	playerCards := []*card.Card{
-		queen,
-		king,
-	}
-
-	jack, _ := card.NewCard(suit.Hearts, rank.Jack, 10, true)
-	six, _ := card.NewCard(suit.Hearts, rank.Six, 6, true)
-
-	// should be a soft 16
-	dealerCards := []*card.Card{
-		jack,
-		six,
-	}
-
-	four, _ := card.NewCard(suit.Hearts, rank.Four, 4, true)
-	five, _ := card.NewCard(suit.Hearts, rank.Five, 5, true)
-	ace, _ := card.NewCard(suit.Hearts, rank.Ace, 1, true)
-
-	playerStartingCash := 500
-	playerBet := 50.0
-	expectedBlackjackPayout := playerBet * 2.5 // payout ratio of 3:2
-
-	bj := &Blackjack{
-		Player: &players.Player{
-			Cards: playerCards,
-			Name:  "player1",
-			Cash:  playerStartingCash,
-			Bet:   int(playerBet),
-		},
-		Dealer: &players.Dealer{
-			Cards: dealerCards,
-		},
-		// should have minCardCount of 0 as 'zero' value for being unset
-		Deck: &decks.BlackjackDeck{
-			DeckCount: 1,
-			Deck: decks.Deck{
-				Cards: []*card.Card{
-					ace,
-					four,
-					five,
-				},
-			},
+	deck := &decks.BlackjackDeck{
+		DeckCount: 1,
+		Deck: decks.Deck{
+			Cards: cards,
 		},
 	}
 
-	if dt := utils.CalcCardsTotal(bj.Player.Cards); dt != 20 {
-		t.Fatalf("Card total wrong. Got 21, got %d", dt)
+	engine, err := NewEngine(Config{
+		PlayerName:   "Tester",
+		StartingCash: startingCash,
+		Deck:         deck,
+	})
+	if err != nil {
+		t.Fatalf("NewEngine returned error: %v", err)
 	}
 
-	outcome := bj.PlayerHit()
+	return engine
+}
 
-	if outcome != PlayerWon {
-		t.Fatalf("Round outcome is wrong. Should have %d, but got %d", PlayerWon, outcome)
+func newCard(t *testing.T, suitName string, rankName string, value int, faceUp bool) *card.Card {
+	t.Helper()
+	dealtCard, err := card.NewCard(suitName, rankName, value, faceUp)
+	if err != nil {
+		t.Fatalf("NewCard returned error: %v", err)
 	}
+	return dealtCard
+}
 
-	if bj.payoutRate != blackjackRate {
-		t.Fatalf("Payout rate is wrong. Should have %d, but got %d", blackjackRate, bj.payoutRate)
+func assertSnapshotPhase(t *testing.T, snapshot Snapshot, want Phase) {
+	t.Helper()
+	if snapshot.Phase != want {
+		t.Fatalf("wrong phase. want %q got %q", want, snapshot.Phase)
 	}
+}
 
-	bj.PlayerWonHand()
-
-	expectedCash := playerStartingCash + int(expectedBlackjackPayout)
-	if bj.Player.Cash != expectedCash {
-		t.Fatalf("Total cash is wrong after payout. Should have %d but got %d", expectedCash, bj.Player.Cash)
+func assertLegalMoves(t *testing.T, got []Move, want ...Move) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("wrong legal moves length. want %d got %d (%v)", len(want), len(got), got)
 	}
+	for idx := range want {
+		if got[idx] != want[idx] {
+			t.Fatalf("wrong legal move at %d. want %q got %q", idx, want[idx], got[idx])
+		}
+	}
+}
+
+func assertEventReason(t *testing.T, events []Event, want HandFinishReason) {
+	t.Helper()
+	for _, event := range events {
+		finished, ok := event.(HandFinishedEvent)
+		if ok && finished.Reason == want {
+			return
+		}
+	}
+	t.Fatalf("expected HandFinishedEvent with reason %q", want)
+}
+
+func assertResolvedEventOutcome(t *testing.T, events []Event, want Outcome) HandResolvedEvent {
+	t.Helper()
+	for _, event := range events {
+		resolved, ok := event.(HandResolvedEvent)
+		if ok && resolved.Outcome == want {
+			return resolved
+		}
+	}
+	t.Fatalf("expected HandResolvedEvent with outcome %q", want)
+	return HandResolvedEvent{}
+}
+
+func assertHandResolvedEvent(t *testing.T, events []Event, want HandResolvedEvent) {
+	t.Helper()
+	resolved := assertResolvedEventOutcome(t, events, want.Outcome)
+	if resolved != want {
+		t.Fatalf("wrong resolved event. want %+v got %+v", want, resolved)
+	}
+}
+
+func assertHasReshuffleEvent(t *testing.T, events []Event) {
+	t.Helper()
+	for _, event := range events {
+		if _, ok := event.(ReshuffledEvent); ok {
+			return
+		}
+	}
+	t.Fatalf("expected reshuffle event")
 }

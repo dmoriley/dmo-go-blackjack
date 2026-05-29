@@ -14,6 +14,7 @@ type BlackjackDeck struct {
 	minCardCount int
 	// Cards that have been used and are no longer in play
 	discardedCards []*card.Card
+	reshuffled     bool
 	Deck
 }
 
@@ -65,7 +66,6 @@ func NewBlackjackDeck(config *BlackjackDeckConfig) *BlackjackDeck {
 		}
 	}
 
-	fmt.Printf("\nCards len: %d, Cards cap: %d\n", bjDeck.GetLength(), cap(bjDeck.Cards))
 	return bjDeck
 }
 
@@ -132,12 +132,14 @@ func (d *BlackjackDeck) AddDeck(deck *Deck) {
 	d.DeckCount++
 }
 
+func (d *BlackjackDeck) ConsumeReshuffle() bool {
+	reshuffled := d.reshuffled
+	d.reshuffled = false
+	return reshuffled
+}
+
 // Added the discarded cards back to the deck and shuffle
 func (d *BlackjackDeck) Reshuffle(shuffleCount int) {
-	fmt.Println("\n***********************************")
-	fmt.Println("***** Reshuffling the deck... *****")
-	fmt.Println("***********************************")
-
 	// flip each card to face down
 	for _, discardedCard := range d.discardedCards {
 		discardedCard.IsFaceUp = false
@@ -149,4 +151,5 @@ func (d *BlackjackDeck) Reshuffle(shuffleCount int) {
 	d.discardedCards = []*card.Card{}
 
 	d.Shuffle(shuffleCount)
+	d.reshuffled = true
 }

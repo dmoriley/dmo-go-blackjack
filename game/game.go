@@ -8,697 +8,349 @@ import (
 	"strconv"
 	"strings"
 
-	"blackjack/card"
-	"blackjack/card/rank"
 	"blackjack/decks"
-	"blackjack/game/players"
 	"blackjack/game/utils"
 )
 
+const PROMPT = "=> "
+
 const (
-	// Max value to win or bust
-	BLACKJACK = 21
-	PROMPT    = "=> "
+	HIT    = "h"
+	STAND  = "s"
+	DOUBLE = "d"
+	SPLIT  = "l"
 )
 
-// Start the game
-func Start(in io.Reader, out io.Writer) {
-	scanner := bufio.NewScanner(in)
-
-	player := &players.Player{
-		// TODO: change player name to player input value at start of game
-		Name: "David",
-		Cash: 500,
-	}
-	dealer := &players.Dealer{}
-	// TODO: change deck count to a player input at config of game
+func Start(in io.Reader, out io.Writer, playerName string) error {
 	config := decks.NewBlackjackDeckConfig().WithNumberOfDecks(4)
-	deck := decks.NewBlackjackDeck(config)
-	deck.Shuffle(5)
-
-	blackjack := &Blackjack{
-		Dealer:     dealer,
-		Player:     player,
-		Deck:       deck,
-		scanner:    scanner,
-		payoutRate: normalRate,
+	engine, err := NewEngine(Config{
+		PlayerName:   playerName,
+		StartingCash: 500,
+		DeckConfig:   config,
+		ShuffleCount: 5,
+	})
+	if err != nil {
+		return err
 	}
 
+	return startWithEngine(in, out, engine)
+}
+
+func startWithEngine(in io.Reader, out io.Writer, engine *Engine) error {
+	scanner := bufio.NewScanner(in)
+	var pending *StepResult
+
 	for {
-		outcome := blackjack.PlaceBet(blackjack.Player)
-		if outcome == Done {
-			fmt.Printf(
-				"\nCongratulations %s! You're cashing out with $%d",
-				blackjack.Player.Name,
-				blackjack.Player.Cash,
-			)
-			break
-		}
-		blackjack.DealFirstCards()
-		if playerScore := utils.CalcCardsTotal(blackjack.Player.Cards); playerScore >= 21 {
-			// player hit 21 points or is over, in either case
-			// they have no more moves to play, so stand
-			if playerScore == BLACKJACK {
-				blackjack.payoutRate = blackjackRate
-				outcome = blackjack.DealerBlackjackCheck()
-			} else {
-				outcome = blackjack.PlayerStand()
-			}
+		snapshot := engine.Snapshot()
+		if pending != nil {
+			snapshot = pending.Snapshot
 		}
 
-		for outcome == InProgress {
-
-			move := blackjack.ChooseNextMove()
-
-			switch move {
-			case HIT:
-				outcome = blackjack.PlayerHit()
-			case STAND:
-				outcome = blackjack.PlayerStand()
-			case DOUBLE:
-				outcome = blackjack.PlayerDouble()
-			case SPLIT:
-				outcome = blackjack.PlayerSplit()
+		switch snapshot.Phase {
+		case PhaseBetting:
+			if pending != nil {
+				printEvents(out, pending.Events)
+				pending = nil
 			}
 
-		}
+			if snapshot.Cash == 0 {
+				fmt.Fprintln(out, "\n*******************************")
+				fmt.Fprintln(out, "Busted! You're out of money.")
+				fmt.Fprintln(out, "\n*******************************")
+				fmt.Fprintln(out, "Thanks for playing! Come back with more cash.")
+				return nil
+			}
 
-		switch outcome {
-		case PlayerWon:
-			blackjack.PlayerWonHand()
-		case PlayerLost:
-			blackjack.PlayerLostHand()
-		case Standoff:
-			blackjack.Standoff()
-		}
+			fmt.Fprintf(out, "%s has $%d in wallet\n", snapshot.PlayerName, snapshot.Cash)
+			for {
+				fmt.Fprint(out, "Place your bet or \".cashout\": $")
+				text, err := readInput(scanner)
+				if err != nil {
+					fmt.Fprintln(out, err.Error())
+					fmt.Fprintln(out, "That bet is invalid. Please try again.")
+					continue
+				}
 
-		blackjack.cleanup()
+				if strings.HasPrefix(text, ".") {
+					result, shouldContinue, err := handleBetCommand(out, engine, snapshot.PreviousBet, text)
+					if err != nil {
+						fmt.Fprintln(out, err.Error())
+						continue
+					}
+					if !shouldContinue {
+						pending = result
+						break
+					}
+					if text == ".help" || text == ".h" {
+						continue
+					}
+					if text == "." || text == ".." {
+						text = strconv.Itoa(snapshot.PreviousBet)
+					}
+				}
 
-		/* continuePrompt := `
-		----------------------
-		| CASHOUT | CONTINUE |
-		|   (c)   |  (enter) |
-		----------------------
-			`
-			fmt.Println(continuePrompt)
-			fmt.Print(PROMPT)
-			continueConfig := utils.NewInputConfig(blackjack.scanner).SetAnyKey()
-			res, _ := utils.GetUserInput(continueConfig)
+				bet, err := strconv.Atoi(text)
+				if err != nil {
+					fmt.Fprintln(out, err.Error())
+					fmt.Fprintln(out, "That bet is invalid. Please try again.")
+					continue
+				}
 
-			if res == "C" || res == "c" {
-				fmt.Printf(
-					"\nCongratulations %s! You're cashing out with $%d",
-					blackjack.Player.Name,
-					blackjack.Player.Cash,
-				)
+				result, err := engine.PlaceBet(bet)
+				if err != nil {
+					fmt.Fprintln(out, err.Error())
+					continue
+				}
+
+				pending = &result
 				break
-			} */
+			}
 
-		if blackjack.Player.Cash == 0 {
-			fmt.Println("\n*******************************")
-			fmt.Println("Busted! You're out of money.")
-			break
+		case PhasePlayerTurn:
+			renderSnapshot(out, snapshot, tableTitle(snapshot), activeSubtitle(snapshot))
+			if pending != nil {
+				printEvents(out, pending.Events)
+				pending = nil
+			}
+			printMovePrompt(out, snapshot.LegalMoves)
+			for {
+				fmt.Fprint(out, PROMPT)
+				text, err := readInput(scanner)
+				if err != nil {
+					fmt.Fprintln(out, err.Error())
+					continue
+				}
+
+				move, ok := parseMove(text)
+				if !ok {
+					fmt.Fprintf(out, "Unexpected value entered: %q\n", text)
+					continue
+				}
+
+				result, err := engine.ApplyMove(move)
+				if err != nil {
+					fmt.Fprintln(out, err.Error())
+					continue
+				}
+
+				pending = &result
+				break
+			}
+
+		case PhaseRoundResult:
+			renderSnapshot(out, snapshot, tableTitle(snapshot), activeSubtitle(snapshot))
+			if pending != nil {
+				printEvents(out, pending.Events)
+				pending = nil
+			}
+			fmt.Fprint(out, "\nPress ENTER to continue...")
+			if _, err := utils.GetUserInput(utils.NewInputConfig(scanner).SetAnyKey()); err != nil {
+				return err
+			}
+
+			result, err := engine.Continue()
+			if err != nil {
+				return err
+			}
+			pending = &result
+
+		case PhaseGameOver:
+			if pending != nil {
+				printEvents(out, pending.Events)
+				pending = nil
+			}
+			fmt.Fprintln(out, "\n*******************************")
+			fmt.Fprintln(out, "Busted! You're out of money.")
+			fmt.Fprintln(out, "\n*******************************")
+			fmt.Fprintln(out, "Thanks for playing! Come back with more cash.")
+			return nil
+
+		case PhaseCashedOut:
+			if pending != nil {
+				printEvents(out, pending.Events)
+				pending = nil
+			}
+			fmt.Fprintf(out, "\nCongratulations %s! You're cashing out with $%d\n", snapshot.PlayerName, snapshot.Cash)
+			fmt.Fprintln(out, "\n*******************************")
+			fmt.Fprintln(out, "Thanks for playing! Come back with more cash.")
+			return nil
 		}
 	}
-	fmt.Println("\n*******************************")
-	fmt.Println("Thanks for playing! Come back with more cash.")
 }
 
-type payoutType int
-
-const (
-	normalRate    payoutType = 1
-	blackjackRate payoutType = 2
-)
-
-// TODO: constructor function for this structure, try to use either Configuration pattern or dependency injection
-
-type Blackjack struct {
-	Player  *players.Player
-	Dealer  *players.Dealer
-	Deck    *decks.BlackjackDeck
-	scanner *bufio.Scanner
-	// The rate a player's bet is payout at when they win a round
-	payoutRate payoutType
-}
-
-func (bj *Blackjack) GetNextBetInput() (any, error) {
-	inputConfig := utils.NewInputConfig(bj.scanner)
-	text, err := utils.GetUserInput(inputConfig)
-	if err != nil {
-		return 0, err
+func tableTitle(snapshot Snapshot) string {
+	if snapshot.IsSplitRound {
+		return "Table Split Round"
 	}
-
-	// check if the text starts with a period for a command
-	if strings.HasPrefix(text, ".") {
-		return text, nil
-	} else {
-		fmt.Println("does not have a . prefix")
-	}
-
-	integer, err := strconv.Atoi(text)
-	if err != nil {
-		return 0, err
-	}
-	return integer, nil
+	return "Table Cards"
 }
 
-func (bj *Blackjack) IsSplitRound() bool {
-	return bj.Player.HasSplitCards()
-}
-
-func (bj *Blackjack) DealPlayerCards(count int) {
-	cards := bj.Deck.Pop(count)
-	for _, c := range cards {
-		c.IsFaceUp = true
+func activeSubtitle(snapshot Snapshot) string {
+	if snapshot.IsSplitRound && snapshot.ActiveHandIndex >= 0 {
+		return fmt.Sprintf("Hand: %d", snapshot.ActiveHandIndex+1)
 	}
-
-	bj.Player.Cards = append(bj.Player.Cards, cards...)
+	return ""
 }
 
-func (bj *Blackjack) DealDealerCards(count int, isFaceUp bool) {
-	cards := bj.Deck.Pop(count)
-	for _, c := range cards {
-		c.IsFaceUp = isFaceUp
-	}
-
-	bj.Dealer.Cards = append(bj.Dealer.Cards, cards...)
-}
-
-func (bj *Blackjack) DealFirstCards() {
-	fmt.Println("\nDealing cards...")
-	// dealt in a loop so each player + dealer is given a card one after the other
-	// instead of dealing out a player entirely before moving to the next one
-	for i := range 2 {
-		bj.DealPlayerCards(1)
-
-		// dealer card only face up on first card dealt
-		if i == 0 {
-			bj.DealDealerCards(1, true)
-		} else {
-			bj.DealDealerCards(1, false)
-		}
-	}
-
-	bj.PrintTableCards()
-}
-
-func (bj *Blackjack) PlaceBet(player *players.Player) RoundOutcome {
-	fmt.Printf("%s has $%d in wallet\n", player.Name, player.Cash)
-
-	var bet int
-	previousBet := player.PreviousBet
-
-	for {
-		fmt.Print("Place your bet or \".cashout\": $")
-		val, err := bj.GetNextBetInput()
-		if err != nil {
-			fmt.Println(err.Error())
-			fmt.Println("That bet is invalid. Please try again.")
-			continue
-		}
-
-		// check if the type return from input is an int
-		assertedBet, ok := val.(int)
-		if !ok {
-			// reassign to asserted
-			assertedCommand := val.(string)
-			// is a string, check if its a valid command
-			switch assertedCommand {
-			case ".help", ".h":
-				// TODO: formatted help
-				helpPrompt := `
+func handleBetCommand(out io.Writer, engine *Engine, previousBet int, command string) (*StepResult, bool, error) {
+	switch command {
+	case ".help", ".h":
+		fmt.Fprintln(out, `
 	-------------------------------------
 	| LAST BET |    CASHOUT   |   HELP  |
 	|    (.)   |  (.cashout)  | (.help) |
 	-------------------------------------
-		`
-				fmt.Println(helpPrompt)
-				continue
-			case ".cashout", ".c", ".exit", ".quit":
-				return Done
-			case ".", "..":
-				assertedBet = previousBet
-			default:
-				fmt.Println("Invalid command. Try \".help\" for more options")
-				continue
-			}
+		`)
+		return nil, true, nil
+	case ".cashout", ".c", ".exit", ".quit":
+		result, err := engine.CashOut()
+		return &result, false, err
+	case ".", "..":
+		if previousBet == 0 {
+			return nil, true, fmt.Errorf("no previous bet available")
 		}
-
-		// is an int, assign to bet
-		bet = assertedBet
-
-		if bet > player.Cash {
-			fmt.Printf(
-				"That bet is larger than your wallet ($%d). Please try again.\n",
-				player.Cash,
-			)
-			continue
-		} else if bet == 0 {
-			fmt.Println("Bet cannot be $0. Please try a different bet.")
-			continue
-		}
-		// bet valid
-		break
+		return nil, true, nil
+	default:
+		return nil, true, fmt.Errorf("Invalid command. Try \".help\" for more options")
 	}
-
-	player.Cash = player.Cash - bet
-	player.Bet = bet
-	player.PreviousBet = bet
-
-	fmt.Printf("Remaining in wallet: $%d\n", player.Cash)
-	return InProgress
 }
 
-func (bj *Blackjack) PrintTableCards() {
-	utils.ClearTerminal()
-	config := utils.NewPrintTableConfig(bj.Dealer, bj.Player, bj.Deck)
-	utils.PrintTable(config)
+func readInput(scanner *bufio.Scanner) (string, error) {
+	config := utils.NewInputConfig(scanner)
+	return utils.GetUserInput(config)
 }
 
-func (bj *Blackjack) PrintSplitRoundCards(round int) {
-	utils.ClearTerminal()
-	config := utils.NewPrintTableConfig(bj.Dealer, bj.Player, bj.Deck).
-		SetTitle("Table Split Round").
-		SetSubtitle(fmt.Sprintf("Hand: %d", round))
-
-	utils.PrintTable(config)
-}
-
-const (
-	// TODO: implement hint machanic that assess the cards on the table and spits out the
-	// recommended best move based on basic strategy
-	HINT   = "i"
-	HIT    = "h"
-	STAND  = "s"
-	DOUBLE = "d"
-	// TODO: implement
-	SPLIT = "l"
-	// TODO: implement; early and late surrenders? Make it a config options at the beginning screen
-	SURRENDER = 'r'
-)
-
-// GetOtherMoves Check if the player has other move options aside from hit and stand
-func (bj *Blackjack) GetOtherMoves() string {
-	move := ""
-
-	// if original two cards dealt
-	if len(bj.Player.Cards) == 2 {
-
-		playerTotal := utils.CalcCardsTotal(bj.Player.Cards)
-		if playerTotal == 9 || playerTotal == 10 || playerTotal == 11 {
-			move += DOUBLE
-		}
-
-		if bj.Player.Cards[0].Rank.Name == bj.Player.Cards[1].Rank.Name && !bj.IsSplitRound() {
-			// if the first two cards initially dealt are of same name
-			// can only split when player has no split cards
-			move += SPLIT
-		}
-	}
-
-	return move
-}
-
-func (bj *Blackjack) ChooseNextMove() string {
-	var prompt string
-	// determine players next available moves
-	otherMoves := bj.GetOtherMoves()
-
-	switch otherMoves {
+func parseMove(input string) (Move, bool) {
+	switch input {
+	case HIT:
+		return MoveHit, true
+	case STAND:
+		return MoveStand, true
 	case DOUBLE:
-		prompt = `
-	------------------------
-	| HIT | STAND | DOUBLE |
-	| (h) |  (s)  |  (d)   |
-	------------------------
-		`
+		return MoveDouble, true
 	case SPLIT:
-		prompt = `
-	-----------------------
-	| HIT | STAND | SPLIT |
-	| (h) |  (s)  |  (l)  |
-	-----------------------
-		`
+		return MoveSplit, true
+	default:
+		return "", false
+	}
+}
 
-	case DOUBLE + SPLIT:
-		prompt = `
+func printMovePrompt(out io.Writer, moves []Move) {
+	hasDouble := slicesContainsMove(moves, MoveDouble)
+	hasSplit := slicesContainsMove(moves, MoveSplit)
+
+	switch {
+	case hasDouble && hasSplit:
+		fmt.Fprintln(out, `
 	--------------------------------
 	| HIT | STAND | DOUBLE | SPLIT |
 	| (h) |  (s)  |  (d)   |  (l)  |
 	--------------------------------
-		`
-
+		`)
+	case hasDouble:
+		fmt.Fprintln(out, `
+	------------------------
+	| HIT | STAND | DOUBLE |
+	| (h) |  (s)  |  (d)   |
+	------------------------
+		`)
+	case hasSplit:
+		fmt.Fprintln(out, `
+	-----------------------
+	| HIT | STAND | SPLIT |
+	| (h) |  (s)  |  (l)  |
+	-----------------------
+		`)
 	default:
-		prompt = `
+		fmt.Fprintln(out, `
 	---------------
-	| HIT | STAND |  
+	| HIT | STAND |
 	| (h) |  (s)  |
 	---------------
-		`
+		`)
 	}
-	fmt.Println(prompt)
-
-	expectedValues := fmt.Sprintf("hs%s", otherMoves)
-
-	inputConfig := utils.NewInputConfig(bj.scanner).
-		SetExpectedValues(strings.Split(expectedValues, "")...)
-	var move string
-	var err error
-	for {
-		fmt.Print(PROMPT)
-		move, err = utils.GetUserInput(inputConfig)
-		if err == nil {
-			// input was correct, break out of loop
-			break
-		}
-
-		fmt.Println(err.Error())
-	}
-	return move
 }
 
-type RoundOutcome int
-
-const (
-	InProgress RoundOutcome = 0
-	PlayerWon  RoundOutcome = 1
-	PlayerLost RoundOutcome = 2
-	Standoff   RoundOutcome = 3
-	Done       RoundOutcome = 4
-)
-
-// Dealer goes through their turn of hitting/standing
-// Returns the score of the dealers hand
-func (bj *Blackjack) dealersTurn() (dealerScore int) {
-	// dealer turns over face down card
-	for _, card := range bj.Dealer.Cards {
-		card.IsFaceUp = true
-	}
-
-	dealerScore = utils.CalcCardsTotal(bj.Dealer.Cards)
-
-	// Check if the dealer has a soft 17 on the first two cards
-	// this is an ace + 6 which can either be 7 or 17, so force the
-	// dealer to hit assuming the value of the ace will be 1
-	if dealerScore == 17 && len(bj.Dealer.Cards) == 2 {
-		card := bj.Deck.Pop(1)[0]
-		card.IsFaceUp = true
-		// deal the dealer one card
-		bj.Dealer.Cards = append(bj.Dealer.Cards, card)
-		dealerScore = utils.CalcCardsTotal(bj.Dealer.Cards)
-	}
-
-	// when the dealer hits a score of 17 or more, auto stand
-	for dealerScore < 17 {
-		card := bj.Deck.Pop(1)[0]
-		card.IsFaceUp = true
-
-		// deal the dealer one card
-		bj.Dealer.Cards = append(bj.Dealer.Cards, card)
-		// get the new score after the added card
-		dealerScore = utils.CalcCardsTotal(bj.Dealer.Cards)
-	}
-	return dealerScore
-}
-
-func (bj *Blackjack) PlayerStand() RoundOutcome {
-	dealerScore := bj.dealersTurn()
-	bj.PrintTableCards()
-
-	// check if dealer bust
-	if dealerScore > BLACKJACK {
-		return PlayerWon
-	}
-
-	playerScore := utils.CalcCardsTotal(bj.Player.Cards)
-
-	var outcome RoundOutcome
-	// compare scores to see who won
-	if dealerScore > playerScore {
-		outcome = PlayerLost
-	} else if dealerScore < playerScore {
-		if playerScore == 21 {
-			bj.payoutRate = blackjackRate
-			fmt.Println("BLACKJACK!!\nCollect your winnings at a rate of 1.5.")
-		}
-		outcome = PlayerWon
-	} else {
-		outcome = Standoff
-	}
-
-	return outcome
-}
-
-// DealerBlackjackCheck Player was dealt a natural blackjack, check if the dealer also has one
-func (bj *Blackjack) DealerBlackjackCheck() RoundOutcome {
-	// dealer turns over face down card
-	for _, card := range bj.Dealer.Cards {
-		card.IsFaceUp = true
-	}
-
-	dealerScore := utils.CalcCardsTotal(bj.Dealer.Cards)
-	playerScore := utils.CalcCardsTotal(bj.Player.Cards)
-
-	bj.PrintTableCards()
-
-	var outcome RoundOutcome
-	// compare scores to see who won
-	if dealerScore < playerScore {
-		outcome = PlayerWon
-	} else {
-		outcome = Standoff
-	}
-	return outcome
-}
-
-// PlayerHit player performs a hit
-func (bj *Blackjack) PlayerHit() (outcome RoundOutcome) {
-	bj.DealPlayerCards(1)
-	bj.PrintTableCards()
-
-	newTotal := utils.CalcCardsTotal(bj.Player.Cards)
-
-	outcome = InProgress
-
-	if newTotal > BLACKJACK {
-		// dont stand cause dealer doesnt need to hit
-		outcome = PlayerLost
-	} else if newTotal == BLACKJACK {
-		fmt.Println("BLACKJACK!!\nCollect your winnings at a rate of 1.5.")
-		bj.payoutRate = blackjackRate
-		outcome = bj.PlayerStand()
-	}
-
-	return outcome
-}
-
-func (bj *Blackjack) PlayerDouble() (outcome RoundOutcome) {
-	// check if the user has enough money to do a double
-	if bj.Player.Cash < bj.Player.Bet {
-		fmt.Printf(
-			"You do not have enough cash left to perform a double.\nNeed $%d, but you only have %d\n",
-			bj.Player.Cash,
-			bj.Player.Bet,
-		)
-		return InProgress
-	}
-
-	// player has enough cash
-	bj.Player.Cash -= bj.Player.Bet
-	bj.Player.Bet *= 2
-	// only pop one more card before standing
-	card := bj.Deck.Pop(1)[0]
-	card.IsFaceUp = true
-
-	bj.Player.Cards = append(bj.Player.Cards, card)
-
-	return bj.PlayerStand()
-}
-
-func (bj *Blackjack) PlayerSplit() (outlcome RoundOutcome) {
-	// check if the user has enough money to do a split
-	// need enough cash to double to bet
-	if bj.Player.Cash < bj.Player.Bet {
-		fmt.Printf(
-			"You dont have enough cash to split.\nNeed $%d, but you only have $%d\n",
-			bj.Player.Bet*2,
-			bj.Player.Bet+bj.Player.Cash,
-		)
-		return InProgress
-	}
-
-	savedBet := bj.Player.Bet
-
-	// cards to be evaluated after both split cards have been finalized by player
-	// slice of anonymous structs
-	savedForEvaluation := []struct {
-		id  int
-		cds []*card.Card
-	}{}
-
-	bj.Player.MoveCardsToSplit()
-
-	for idx := 1; bj.Player.HasSplitCards(); idx++ {
-		// potential hand to save
-		saved := struct {
-			id  int
-			cds []*card.Card
-		}{
-			id:  idx,
-			cds: []*card.Card{},
-		}
-		// if the bet was previously cleared pull money from player for next split card bet
-		if bj.Player.Bet == 0 {
-			bj.Player.Bet = savedBet
-			bj.Player.Cash -= savedBet
-		}
-
-		// move split card to players cards
-		bj.Player.NextSplitCard()
-
-		if bj.Player.Cards[0].Rank.Name == rank.Ace {
-			// ace cards only allowed one card on split
-			// deal card and add to pending array
-
-			bj.DealPlayerCards(1)
-			bj.PrintSplitRoundCards(saved.id)
-
-			// prompt user to hit any key to continue
-			utils.EnterToContinue(bj.scanner)
-
-			saved.cds = append(saved.cds, bj.Player.Cards...)
-			savedForEvaluation = append(savedForEvaluation, saved)
-			// assign new slice instead of reslice because need that slice in memory to maintain
-			// the same values so savedForEvaluation can be looped on later with the same values
-			// otherwise if reslice to {:0] it would overwrite the values
-			bj.Player.Cards = []*card.Card{}
-			continue
-		}
-
-		// draw one card and add to player cards
-		bj.DealPlayerCards(1)
-		bj.PrintSplitRoundCards(saved.id)
-
-		localOutcome := InProgress
-		for localOutcome == InProgress {
-			move := bj.ChooseNextMove()
-			switch move {
-			case HIT:
-				// custom hit logic for split rounds
-				bj.DealPlayerCards(1)
-				bj.PrintSplitRoundCards(saved.id)
-
-				newTotal := utils.CalcCardsTotal(bj.Player.Cards)
-
-				if newTotal > BLACKJACK {
-					// dont stand cause dealer doesnt need to hit
-					bj.PlayerLostHand()
-					bj.Deck.AddDiscardedCards(bj.Player.Cards)
-					bj.Player.Cards = []*card.Card{}
-					localOutcome = Done
-					utils.EnterToContinue(bj.scanner)
-					continue
-				} else if newTotal == BLACKJACK {
-
-					// theres no blackjack rate during a split
-					saved.cds = append(saved.cds, bj.Player.Cards...)
-					savedForEvaluation = append(savedForEvaluation, saved)
-					bj.Player.Cards = []*card.Card{}
-					fmt.Println("Player hit max card score.")
-					localOutcome = Done
-					utils.EnterToContinue(bj.scanner)
-				}
-			case STAND:
-				saved.cds = append(saved.cds, bj.Player.Cards...)
-				// custom stand logic for split rounds
-				savedForEvaluation = append(savedForEvaluation, saved)
-
-				bj.Player.Cards = []*card.Card{}
-				localOutcome = Done
-			case DOUBLE:
-				// TODO: implement split double
-				// outcome = bj.PlayerDouble()
-				fmt.Println("Split double under construction. Try something else.")
-				localOutcome = InProgress
+func printEvents(out io.Writer, events []Event) {
+	for _, event := range events {
+		switch e := event.(type) {
+		case ReshuffledEvent:
+			fmt.Fprintln(out, "\n***********************************")
+			fmt.Fprintln(out, "***** Reshuffling the deck... *****")
+			fmt.Fprintln(out, "***********************************")
+		case HandFinishedEvent:
+			switch e.Reason {
+			case HandFinishBust:
+				fmt.Fprint(out, "***  Dealer win!  ***\nCollecting all losing bets...\n\n")
+			case HandFinishTwentyOne:
+				fmt.Fprintln(out, "Player hit max card score.")
+			case HandFinishSplitAceAutoStand:
+				fmt.Fprintln(out, "Split aces receive one card and stand automatically.")
 			}
+		case HandResolvedEvent:
+			switch e.Outcome {
+			case OutcomeWon:
+				if e.Blackjack {
+					fmt.Fprintln(out, "BLACKJACK!!\nCollect your winnings at a rate of 1.5.")
+				}
+				fmt.Fprint(out, "***  Player win!  ***\nAdding winnings to your wallet...\n\n")
+			case OutcomeLost:
+				fmt.Fprint(out, "***  Dealer win!  ***\nCollecting all losing bets...\n\n")
+			case OutcomePush:
+				fmt.Fprint(out, "Push! Returning all bets...\n\n")
+			}
+		case ActionDeniedEvent:
+			fmt.Fprintln(out, e.Reason)
 		}
 	}
+}
 
-	dealerTotal := bj.dealersTurn()
-	for idx, savedStruct := range savedForEvaluation {
-
-		if bj.Player.Bet == 0 {
-			bj.Player.Bet = savedBet
-			bj.Player.Cash -= savedBet
-		}
-
-		bj.Player.Cards = savedStruct.cds
-		bj.PrintSplitRoundCards(savedStruct.id)
-
-		playerTotal := utils.CalcCardsTotal(savedStruct.cds)
-
-		if playerTotal > dealerTotal || dealerTotal > BLACKJACK {
-			bj.PlayerWonHand()
-		} else if dealerTotal > playerTotal {
-			bj.PlayerLostHand()
-		} else if dealerTotal == playerTotal {
-			bj.Standoff()
-		}
-
-		if idx != len(savedForEvaluation)-1 {
-			// don't show on the last item cause they'll see it anyways once split is finalized
-			// pause for user to look at at outcome
-			utils.EnterToContinue(bj.scanner)
+func slicesContainsMove(moves []Move, target Move) bool {
+	for _, move := range moves {
+		if move == target {
+			return true
 		}
 	}
-
-	bj.cleanup()
-	return Done
+	return false
 }
 
-// PlayerLostHand Player has lost the hand, clean up for next deal
-func (bj *Blackjack) PlayerLostHand() {
-	fmt.Print("***  Dealer win!  ***\nCollecting all losing bets...\n\n")
-	// Player loses the bet
-	bj.Player.Bet = 0
-}
-
-func (bj *Blackjack) PlayerWonHand() {
-	fmt.Print("***  Player win!  ***\nAdding winnings to your wallet...\n\n")
-	if bj.payoutRate == normalRate {
-		// effective rate or 1
-		bj.Player.Cash += (bj.Player.Bet * 2)
-	} else {
-		// else is blackjack rate so rate is 3:2
-		// *25 /10 is the same as doing * 2.5 but we avoid floats
-		bj.Player.Cash += (bj.Player.Bet * 25 / 10)
+func renderSnapshot(out io.Writer, snapshot Snapshot, title string, subtitle string) {
+	playerHand := HandState{}
+	if snapshot.ActiveHandIndex >= 0 && snapshot.ActiveHandIndex < len(snapshot.PlayerHands) {
+		playerHand = snapshot.PlayerHands[snapshot.ActiveHandIndex]
+	} else if len(snapshot.PlayerHands) > 0 {
+		playerHand = snapshot.PlayerHands[0]
 	}
-	bj.Player.Bet = 0
+
+	config := utils.NewPrintTableConfig(
+		toTableHand("Dealer", snapshot.Dealer),
+		toTableHand(snapshot.PlayerName, playerHand),
+		snapshot.DeckRemaining,
+		snapshot.DeckTotal,
+	)
+	if title != "" {
+		config.SetTitle(title)
+	}
+	if subtitle != "" {
+		config.SetSubtitle(subtitle)
+	}
+
+	fmt.Fprint(out, utils.RenderTable(config))
 }
 
-// Standoff Player and dealer have the same card total
-func (bj *Blackjack) Standoff() {
-	fmt.Print("Push! Returning all bets...\n\n")
-	// player looses nothing, add bet back to cash
-	bj.Player.Cash += bj.Player.Bet
-	bj.Player.Bet = 0
-}
+func toTableHand(label string, hand HandState) utils.TableHand {
+	cards := make([]utils.TableCard, 0, len(hand.Cards))
+	for _, card := range hand.Cards {
+		cards = append(cards, utils.TableCard{
+			Label:  fmt.Sprintf("%s of %s", card.Rank, card.Suit),
+			Value:  card.Value,
+			FaceUp: card.FaceUp,
+		})
+	}
 
-// Clear the cards of the dealer and the player by clearing and reslicing
-// which will maintain the same memory adderss for the game, but also
-// retain the highest capacity acheived across hands played
-func (bj *Blackjack) cleanup() {
-	bj.Deck.AddDiscardedCards(bj.Player.Cards)
-	// sets values in slice to 'zero'
-	clear(bj.Player.Cards)
-	// reslice so length of slice is now zero again
-	bj.Player.Cards = bj.Player.Cards[:0]
-
-	// same as above
-	bj.Deck.AddDiscardedCards(bj.Dealer.Cards)
-	clear(bj.Dealer.Cards)
-	bj.Dealer.Cards = bj.Dealer.Cards[:0]
-
-	bj.payoutRate = normalRate
+	return utils.TableHand{
+		Label: label,
+		Total: hand.Total,
+		Cards: cards,
+	}
 }

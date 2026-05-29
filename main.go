@@ -25,5 +25,7 @@ func main() {
                         |__/ 
 	`)
 	fmt.Printf("Welcome, don't be caught counting cards %s...\n", user.Username)
-	game.Start(os.Stdin, os.Stdout)
+	if err := game.Start(os.Stdin, os.Stdout, user.Username); err != nil {
+		panic(err)
+	}
 }

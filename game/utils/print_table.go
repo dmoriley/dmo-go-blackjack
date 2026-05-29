@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"blackjack/decks"
-	"blackjack/game/players"
 	"bytes"
 	"fmt"
 )
@@ -12,26 +10,50 @@ const (
 )
 
 // configuration pattern
+
+type TableCard struct {
+	Label  string
+	Value  int
+	FaceUp bool
+}
+
+func (c TableCard) Inspect() string {
+	if !c.FaceUp {
+		return "{Face down}"
+	}
+
+	return fmt.Sprintf("{%s, value: %d}", c.Label, c.Value)
+}
+
+type TableHand struct {
+	Label string
+	Total int
+	Cards []TableCard
+}
+
 type printTableConfig struct {
-	dealer   *players.Dealer
-	player   *players.Player
-	deck     *decks.BlackjackDeck
-	title    string
-	subtitle string
+	dealer        TableHand
+	player        TableHand
+	deckRemaining int
+	deckTotal     int
+	title         string
+	subtitle      string
 }
 
 func NewPrintTableConfig(
-	dealer *players.Dealer,
-	player *players.Player,
-	deck *decks.BlackjackDeck,
+	dealer TableHand,
+	player TableHand,
+	deckRemaining int,
+	deckTotal int,
 ) *printTableConfig {
 
 	return &printTableConfig{
-		dealer:   dealer,
-		player:   player,
-		deck:     deck,
-		title:    "Table Cards",
-		subtitle: "",
+		dealer:        dealer,
+		player:        player,
+		deckRemaining: deckRemaining,
+		deckTotal:     deckTotal,
+		title:         "Table Cards",
+		subtitle:      "",
 	}
 }
 
@@ -46,6 +68,10 @@ func (c *printTableConfig) SetSubtitle(sub string) *printTableConfig {
 }
 
 func PrintTable(config *printTableConfig) {
+	fmt.Print(RenderTable(config))
+}
+
+func RenderTable(config *printTableConfig) string {
 	var out bytes.Buffer
 
 	out.WriteString("\n")
@@ -62,12 +88,12 @@ func PrintTable(config *printTableConfig) {
 		TABLE_CHAR_WIDTH,
 		' ',
 		'*',
-		fmt.Sprintf("Total: %d", CalcCardsTotal(config.dealer.Cards)),
+		fmt.Sprintf("Total: %d", config.dealer.Total),
 		"left",
 	)
 	FillTextAndPad(&out, TABLE_CHAR_WIDTH, ' ', '*', "-------------", "left")
 	FillTextAndPad(&out, TABLE_CHAR_WIDTH, ' ', '*', "", "")
-	out.WriteString(decks.PrettyPrintCards(config.dealer.Cards))
+	out.WriteString(prettyPrintCards(config.dealer.Cards))
 	FillTextAndPad(&out, TABLE_CHAR_WIDTH, ' ', '*', "", "")
 
 	// player name and card total
@@ -76,7 +102,7 @@ func PrintTable(config *printTableConfig) {
 		TABLE_CHAR_WIDTH,
 		' ',
 		'*',
-		fmt.Sprintf("%s cards", config.player.Name),
+		fmt.Sprintf("%s cards", config.player.Label),
 		"left",
 	)
 	FillTextAndPad(
@@ -84,13 +110,13 @@ func PrintTable(config *printTableConfig) {
 		TABLE_CHAR_WIDTH,
 		' ',
 		'*',
-		fmt.Sprintf("Total: %d", CalcCardsTotal(config.player.Cards)),
+		fmt.Sprintf("Total: %d", config.player.Total),
 		"left",
 	)
 
 	FillTextAndPad(&out, TABLE_CHAR_WIDTH, ' ', '*', "-------------", "left")
 	FillTextAndPad(&out, TABLE_CHAR_WIDTH, ' ', '*', "", "")
-	out.WriteString(decks.PrettyPrintCards(config.player.Cards))
+	out.WriteString(prettyPrintCards(config.player.Cards))
 	FillTextAndPad(&out, TABLE_CHAR_WIDTH, ' ', '*', "", "")
 	FillTextAndPad(&out, TABLE_CHAR_WIDTH, '*', '*', "", "")
 	FillTextAndPad(
@@ -98,10 +124,26 @@ func PrintTable(config *printTableConfig) {
 		TABLE_CHAR_WIDTH,
 		'*',
 		'*',
-		fmt.Sprintf("%d/%d", config.deck.GetLength(), config.deck.DeckCount*52),
+		fmt.Sprintf("%d/%d", config.deckRemaining, config.deckTotal),
 		"middle",
 	)
 	FillTextAndPad(&out, TABLE_CHAR_WIDTH, '*', '*', "", "")
 
-	fmt.Println(out.String())
+	return out.String()
+}
+
+func prettyPrintCards(cards []TableCard) string {
+	var out bytes.Buffer
+
+	if len(cards) == 0 {
+		out.WriteString("{ No Cards }")
+		return out.String()
+	}
+
+	out.WriteString("{\n")
+	for _, card := range cards {
+		out.WriteString(fmt.Sprintf("\t%s\n", card.Inspect()))
+	}
+	out.WriteString("}\n")
+	return out.String()
 }
