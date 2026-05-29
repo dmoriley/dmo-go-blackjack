@@ -1,8 +1,6 @@
 package game
 
 import (
-	"bytes"
-	"strings"
 	"testing"
 
 	"blackjack/card"
@@ -367,30 +365,6 @@ func TestGameOverAfterLosingLastCash(t *testing.T) {
 	}
 	if _, ok := continueResult.Events[0].(GameOverEvent); !ok {
 		t.Fatalf("expected GameOverEvent, got %T", continueResult.Events[0])
-	}
-}
-
-func TestStartRendersRoundStatesOnce(t *testing.T) {
-	engine := newTestEngine(t, 500,
-		newCard(t, suit.Hearts, rank.Ten, 10, false),
-		newCard(t, suit.Spades, rank.Nine, 9, false),
-		newCard(t, suit.Diamonds, rank.Eight, 8, false),
-		newCard(t, suit.Clubs, rank.Seven, 7, false),
-		newCard(t, suit.Hearts, rank.King, 10, false),
-	)
-
-	input := strings.NewReader("5\ns\n\n.cashout\n")
-	var output bytes.Buffer
-
-	if err := startWithEngine(input, &output, engine); err != nil {
-		t.Fatalf("startWithEngine returned error: %v", err)
-	}
-
-	if got := strings.Count(output.String(), "Table Cards"); got != 2 {
-		t.Fatalf("expected 2 table renders for one round, got %d\noutput:\n%s", got, output.String())
-	}
-	if got := strings.Count(output.String(), "| HIT | STAND |"); got != 1 {
-		t.Fatalf("expected move prompt once, got %d\noutput:\n%s", got, output.String())
 	}
 }
 

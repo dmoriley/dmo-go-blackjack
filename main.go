@@ -1,31 +1,14 @@
 package main
 
 import (
-	"blackjack/game"
-	"blackjack/game/utils"
-	"fmt"
-	"os"
-	"os/user"
+	"blackjack/ui/tui"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
-
-	user, err := user.Current()
-	if err != nil {
-		panic(err)
-	}
-
-	utils.ClearTerminal()
-	fmt.Println(`
-  ____  _            _     _            _    
- | __ )| | __ _  ___| | __(_) __ _  ___| | __
- |  _ \| |/ _' |/ __| |/ /| |/ _' |/ __| |/ /
- | |_) | | (_| | (__|   < | | (_| | (__|   < 
- |____/|_|\__,_|\___|_|\_\/ |\__,_|\___|_|\_\
-                        |__/ 
-	`)
-	fmt.Printf("Welcome, don't be caught counting cards %s...\n", user.Username)
-	if err := game.Start(os.Stdin, os.Stdout, user.Username); err != nil {
+	program := tea.NewProgram(tui.NewModel(), tea.WithAltScreen())
+	if _, err := program.Run(); err != nil {
 		panic(err)
 	}
 }
