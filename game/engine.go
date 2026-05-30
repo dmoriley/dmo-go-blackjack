@@ -90,6 +90,9 @@ func (e *Engine) Snapshot() Snapshot {
 		Total:    visibleTotal(e.dealer),
 		Resolved: e.phase == PhaseRoundResult,
 	}
+	if e.phase == PhaseRoundResult && e.resultIndex < len(e.resultQueue) {
+		dealer.Outcome = dealerOutcomeFor(e.resultQueue[e.resultIndex].Outcome)
+	}
 
 	hands := make([]HandState, 0, len(e.hands))
 	for _, hand := range e.hands {
@@ -567,6 +570,17 @@ func (e *Engine) cleanupRound() {
 	e.activeHandIndex = -1
 	e.resultQueue = nil
 	e.resultIndex = 0
+}
+
+func dealerOutcomeFor(playerOutcome Outcome) Outcome {
+	switch playerOutcome {
+	case OutcomeWon:
+		return OutcomeLost
+	case OutcomeLost:
+		return OutcomeWon
+	default:
+		return OutcomePush
+	}
 }
 
 func (e *Engine) revealDealer() {

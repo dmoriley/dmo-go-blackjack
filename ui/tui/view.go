@@ -121,22 +121,22 @@ func (m Model) renderHandPanel(title string, hand game.HandState, isPlayer bool,
 		innerWidth = max(1, width-style.GetHorizontalFrameSize())
 	}
 
-	meta := []string{fmt.Sprintf("Total %d", hand.Total)}
+	meta := []string{m.styles.muted.Render(fmt.Sprintf("Total %d", hand.Total))}
 	if isPlayer && hand.Bet > 0 {
-		meta = append(meta, fmt.Sprintf("Bet $%d", hand.Bet))
+		meta = append(meta, m.styles.muted.Render(fmt.Sprintf("Bet $%d", hand.Bet)))
 	}
 	if hand.Blackjack {
-		meta = append(meta, "Blackjack")
+		meta = append(meta, m.styles.muted.Render("Blackjack"))
 	}
 	if hand.Busted {
-		meta = append(meta, "Busted")
+		meta = append(meta, m.styles.muted.Render("Busted"))
 	}
 	if hand.Resolved {
-		meta = append(meta, fmt.Sprintf("Result %s", outcomeLabel(hand.Outcome)))
+		meta = append(meta, m.renderOutcomeMeta(hand.Outcome))
 	}
 
 	titleText := m.styles.panelTitle.Render(title)
-	metaText := m.styles.muted.Render(strings.Join(meta, " · "))
+	metaText := lipgloss.JoinHorizontal(lipgloss.Left, joinWithSeparator(meta, m.styles.muted.Render(" · "))...)
 	header := titleText
 	if metaText != "" {
 		if innerWidth > 0 && lipgloss.Width(titleText)+2+lipgloss.Width(metaText) <= innerWidth {
@@ -150,6 +150,35 @@ func (m Model) renderHandPanel(title string, hand game.HandState, isPlayer bool,
 		header,
 		m.renderCards(hand.Cards, innerWidth, cardMode),
 	))
+}
+
+func (m Model) renderOutcomeMeta(outcome game.Outcome) string {
+	label := m.styles.muted.Render("Result ")
+	result := outcomeLabel(outcome)
+	switch outcome {
+	case game.OutcomeWon:
+		return label + m.styles.success.Render(result)
+	case game.OutcomeLost:
+		return label + m.styles.danger.Render(result)
+	default:
+		return label + m.styles.muted.Render(result)
+	}
+}
+
+func joinWithSeparator(parts []string, separator string) []string {
+	if len(parts) == 0 {
+		return nil
+	}
+
+	joined := make([]string, 0, len(parts)*2-1)
+	for idx, part := range parts {
+		if idx > 0 {
+			joined = append(joined, separator)
+		}
+		joined = append(joined, part)
+	}
+
+	return joined
 }
 
 func (m Model) renderCards(cards []game.CardState, availableWidth int, cardMode cardRenderMode) string {
