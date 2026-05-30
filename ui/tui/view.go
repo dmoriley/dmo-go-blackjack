@@ -137,26 +137,22 @@ func (m Model) renderCards(cards []game.CardState) string {
 	for _, card := range cards {
 		rendered = append(rendered, m.renderCard(card))
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, rendered...)
+
+	rows := make([]string, 0, (len(rendered)+3)/4)
+	for start := 0; start < len(rendered); start += 4 {
+		end := min(start+4, len(rendered))
+		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, rendered[start:end]...))
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left, rows...)
 }
 
 func (m Model) renderCard(card game.CardState) string {
 	if !card.FaceUp {
-		return m.styles.cardFaceDown.Render(strings.Join([]string{
-			m.styles.muted.Render("Hidden card"),
-			"",
-			m.styles.muted.Render("Dealer hole card"),
-		}, "\n"))
+		return m.styles.cardFaceDown.Render(strings.Join(faceDownCardLines(), "\n"))
 	}
 
-	rank := m.styles.cardAccent.Render(card.Rank)
-	body := []string{
-		rank,
-		card.Suit,
-		"",
-		m.styles.muted.Render(fmt.Sprintf("Value %d", card.Value)),
-	}
-	return m.styles.card.Render(strings.Join(body, "\n"))
+	return m.styles.card.Render(strings.Join(faceUpCardLines(card), "\n"))
 }
 
 func (m Model) viewSidebar() string {
@@ -353,4 +349,235 @@ func max(a int, b int) int {
 		return a
 	}
 	return b
+}
+
+func min(a int, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func faceUpCardLines(card game.CardState) []string {
+	rank := shortRank(card.Rank)
+	suit := suitSymbol(card.Suit)
+	rows := cardInteriorRows(rank, suit)
+	lines := make([]string, 0, len(rows)+3)
+	lines = append(lines, "┌───────────┐")
+	for _, row := range rows {
+		lines = append(lines, "│"+row+"│")
+	}
+	lines = append(lines, "└───────────┘")
+	lines = append(lines, fmt.Sprintf("%s of %s [%d]", card.Rank, card.Suit, card.Value))
+	return lines
+}
+
+func faceDownCardLines() []string {
+	return []string{
+		"┌───────────┐",
+		"│░░░░░░░░░░░│",
+		"│░ ▒▒▒▒▒▒▒ ░│",
+		"│░ ▒ ┌─┐ ▒ ░│",
+		"│░ ▒ │░│ ▒ ░│",
+		"│░ ▒ └─┘ ▒ ░│",
+		"│░ ▒▒▒▒▒▒▒ ░│",
+		"│░░░░░░░░░░░│",
+		"└───────────┘",
+		"Face down",
+	}
+}
+
+func cardInteriorRows(rank string, suit string) []string {
+	blank := strings.Repeat(" ", 11)
+	pair := "  " + suit + "     " + suit + "  "
+	centerSuit := centerVisible(suit, 11)
+	tripleSuit := centerVisible(suit+suit+suit, 11)
+
+	switch rank {
+	case "A":
+		return []string{
+			padRightVisible(rank, 11),
+			blank,
+			blank,
+			centerSuit,
+			blank,
+			blank,
+			padLeftVisible(rank, 11),
+		}
+	case "2":
+		return []string{
+			padRightVisible(rank, 11),
+			blank,
+			centerSuit,
+			blank,
+			blank,
+			centerSuit,
+			padLeftVisible(rank, 11),
+		}
+	case "3":
+		return []string{
+			padRightVisible(rank, 11),
+			centerSuit,
+			blank,
+			centerSuit,
+			blank,
+			centerSuit,
+			padLeftVisible(rank, 11),
+		}
+	case "4":
+		return []string{
+			padRightVisible(rank, 11),
+			pair,
+			blank,
+			blank,
+			blank,
+			pair,
+			padLeftVisible(rank, 11),
+		}
+	case "5":
+		return []string{
+			padRightVisible(rank, 11),
+			pair,
+			blank,
+			centerSuit,
+			blank,
+			pair,
+			padLeftVisible(rank, 11),
+		}
+	case "6":
+		return []string{
+			padRightVisible(rank, 11),
+			pair,
+			blank,
+			pair,
+			blank,
+			pair,
+			padLeftVisible(rank, 11),
+		}
+	case "7":
+		return []string{
+			padRightVisible(rank, 11),
+			pair,
+			centerSuit,
+			pair,
+			blank,
+			pair,
+			padLeftVisible(rank, 11),
+		}
+	case "8":
+		return []string{
+			padRightVisible(rank, 11),
+			pair,
+			centerSuit,
+			pair,
+			centerSuit,
+			pair,
+			padLeftVisible(rank, 11),
+		}
+	case "9":
+		return []string{
+			padRightVisible(rank, 11),
+			pair,
+			pair,
+			centerSuit,
+			pair,
+			pair,
+			padLeftVisible(rank, 11),
+		}
+	case "10":
+		return []string{
+			padRightVisible(rank, 11),
+			pair,
+			centerSuit,
+			pair,
+			pair,
+			centerSuit,
+			"  " + suit + "     " + suit + rank,
+		}
+	case "J":
+		return []string{
+			padRightVisible(rank, 11),
+			pair,
+			centerVisible("J", 11),
+			tripleSuit,
+			centerVisible("J", 11),
+			pair,
+			padLeftVisible(rank, 11),
+		}
+	case "Q":
+		return []string{
+			padRightVisible(rank, 11),
+			pair,
+			centerVisible(".-.", 11),
+			centerVisible("( Q )", 11),
+			centerVisible("`-'", 11),
+			pair,
+			padLeftVisible(rank, 11),
+		}
+	case "K":
+		return []string{
+			padRightVisible(rank, 11),
+			pair,
+			centerVisible("\\|/", 11),
+			centerVisible("--K--", 11),
+			centerVisible("/|\\", 11),
+			pair,
+			padLeftVisible(rank, 11),
+		}
+	default:
+		return []string{
+			padRightVisible(rank, 11),
+			blank,
+			blank,
+			centerSuit,
+			blank,
+			blank,
+			padLeftVisible(rank, 11),
+		}
+	}
+}
+
+func shortRank(rank string) string {
+	switch rank {
+	case "Ace":
+		return "A"
+	case "King":
+		return "K"
+	case "Queen":
+		return "Q"
+	case "Jack":
+		return "J"
+	default:
+		return rank
+	}
+}
+
+func suitSymbol(suit string) string {
+	switch suit {
+	case "Hearts":
+		return "♥"
+	case "Diamonds":
+		return "♦"
+	case "Clubs":
+		return "♣"
+	case "Spades":
+		return "♠"
+	default:
+		return "?"
+	}
+}
+
+func centerVisible(text string, width int) string {
+	padding := max(0, width-lipgloss.Width(text))
+	left := padding / 2
+	right := padding - left
+	return strings.Repeat(" ", left) + text + strings.Repeat(" ", right)
+}
+
+func padRightVisible(text string, width int) string {
+	return text + strings.Repeat(" ", max(0, width-lipgloss.Width(text)))
+}
+
+func padLeftVisible(text string, width int) string {
+	return strings.Repeat(" ", max(0, width-lipgloss.Width(text))) + text
 }

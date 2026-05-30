@@ -82,18 +82,13 @@ func newStyles() styles {
 			Padding(0, 1),
 		inputLabel: lipgloss.NewStyle().Foreground(muted),
 		card: lipgloss.NewStyle().
-			Width(18).
-			Height(5).
-			Border(lipgloss.RoundedBorder()).
+			Width(15).
 			BorderForeground(lipgloss.Color("#6A8A7F")).
-			Padding(0, 1),
+			PaddingRight(1),
 		cardFaceDown: lipgloss.NewStyle().
-			Width(18).
-			Height(5).
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#4D675F")).
 			Foreground(muted).
-			Padding(0, 1),
+			Width(15).
+			PaddingRight(1),
 		cardAccent: lipgloss.NewStyle().Foreground(gold).Bold(true),
 		activeHand: lipgloss.NewStyle().
 			Border(lipgloss.ThickBorder()).
