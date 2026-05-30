@@ -49,16 +49,16 @@ func newStyles() styles {
 		app: lipgloss.NewStyle().
 			Foreground(base).
 			Background(green).
-			Padding(1, 2),
+			Padding(0, 1),
 		canvas: lipgloss.NewStyle().
 			Foreground(base).
 			Background(green),
 		shell: lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(border).
-			Padding(1, 2),
+			Padding(0, 1),
 		header: lipgloss.NewStyle().
-			MarginBottom(1),
+			MarginBottom(0),
 		headerTitle: lipgloss.NewStyle().
 			Foreground(gold).
 			Bold(true),
@@ -67,7 +67,7 @@ func newStyles() styles {
 		panel: lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(border).
-			Padding(1, 2),
+			Padding(0, 1),
 		panelTitle: lipgloss.NewStyle().
 			Foreground(gold).
 			Bold(true),
@@ -93,25 +93,25 @@ func newStyles() styles {
 		activeHand: lipgloss.NewStyle().
 			Border(lipgloss.ThickBorder()).
 			BorderForeground(gold).
-			Padding(1, 2),
+			Padding(0, 1),
 		inactiveHand: lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(border).
-			Padding(1, 2),
+			Padding(0, 1),
 		actionBar: lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(border).
-			Padding(1, 2),
+			Padding(0, 1),
 		actionKey:      lipgloss.NewStyle().Foreground(gold).Bold(true),
 		actionDisabled: lipgloss.NewStyle().Foreground(muted),
 		logPanel: lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(border).
-			Padding(1, 2),
+			Padding(0, 1),
 		endPanel: lipgloss.NewStyle().
 			Border(lipgloss.DoubleBorder()).
 			BorderForeground(gold).
-			Padding(1, 3),
+			Padding(0, 2),
 		namePrompt: lipgloss.NewStyle().
 			Foreground(gold).
 			Bold(true),
@@ -119,7 +119,7 @@ func newStyles() styles {
 			Width(56).
 			Border(lipgloss.DoubleBorder()).
 			BorderForeground(border).
-			Padding(2, 3),
+			Padding(1, 2),
 		divider: lipgloss.NewStyle().Foreground(border),
 		statusPill: lipgloss.NewStyle().
 			Foreground(greenAlt).
