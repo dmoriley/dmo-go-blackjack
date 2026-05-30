@@ -76,19 +76,8 @@ func (m Model) viewTable() string {
 }
 
 func (m Model) viewHeader(contentWidth int) string {
-	phase := phaseLabel(m.snapshot.Phase)
-	pill := m.styles.statusPill.Render(phase)
-	if m.snapshot.Phase == game.PhaseRoundResult || m.snapshot.Phase == game.PhaseGameOver || m.snapshot.Phase == game.PhaseCashedOut {
-		pill = m.styles.statusPillAlert.Render(phase)
-	}
-
 	left := m.styles.headerTitle.Render("Blackjack")
-	if lipgloss.Width(left)+1+lipgloss.Width(pill) <= contentWidth {
-		line := lipgloss.JoinHorizontal(lipgloss.Top, left, strings.Repeat(" ", max(1, contentWidth-lipgloss.Width(left)-lipgloss.Width(pill))), pill)
-		return m.styles.header.Render(line)
-	}
-
-	return m.styles.header.Render(lipgloss.JoinVertical(lipgloss.Left, left, pill))
+	return m.styles.header.Render(left)
 }
 
 func (m Model) viewMainTable(width int) string {
@@ -176,19 +165,33 @@ func (m Model) renderCard(card game.CardState) string {
 func (m Model) viewSidebar(width int) string {
 	statusStyle := m.styles.panel
 	logStyle := m.styles.logPanel
+	phaseStyle := m.styles.panel
 	if width > 0 {
 		statusStyle = fitStyleWidth(statusStyle.Copy(), width)
 		logStyle = fitStyleWidth(logStyle.Copy(), width)
+		phaseStyle = fitStyleWidth(phaseStyle.Copy(), width)
 	}
 
-	status := statusStyle.Render(strings.Join(filterEmpty([]string{
-		m.styles.panelTitle.Render("Status"),
-		fmt.Sprintf("Player %s", m.playerName),
-		fmt.Sprintf("Cash $%d", m.snapshot.Cash),
-		fmt.Sprintf("Previous bet $%d", m.snapshot.PreviousBet),
+	phase := phaseLabel(m.snapshot.Phase)
+	pill := m.styles.statusPill.Render(phase)
+	if m.snapshot.Phase == game.PhaseRoundResult || m.snapshot.Phase == game.PhaseGameOver || m.snapshot.Phase == game.PhaseCashedOut {
+		pill = m.styles.statusPillAlert.Render(phase)
+	}
+
+	phasePanel := phaseStyle.Render(strings.Join([]string{
+		m.styles.panelTitle.Render("Game Status"),
+		pill,
 		fmt.Sprintf("Deck %d / %d", m.snapshot.DeckRemaining, m.snapshot.DeckTotal),
-		fmt.Sprintf("Pending results %d", m.snapshot.PendingResults),
-	}), "\n"))
+	}, "\n"))
+
+	statusLines := []string{
+		m.styles.panelTitle.Render("Player Status"),
+		"Player ----------- " + padLeftVisible(m.playerName, 5),
+		"Cash ------------- " + padLeftVisible(fmt.Sprintf("$%d", m.snapshot.Cash), 5),
+		"Previous bet ----- " + padLeftVisible(fmt.Sprintf("$%d", m.snapshot.PreviousBet), 5),
+		"Pending results -- " + padLeftVisible(fmt.Sprintf("%d", m.snapshot.PendingResults), 5),
+	}
+	status := statusStyle.Render(strings.Join(statusLines, "\n"))
 
 	logLines := make([]string, 0, len(m.logs)+1)
 	logLines = append(logLines, m.styles.panelTitle.Render("Table Log"))
@@ -201,7 +204,7 @@ func (m Model) viewSidebar(width int) string {
 	}
 
 	logPanel := logStyle.Render(strings.Join(logLines, "\n"))
-	return lipgloss.JoinVertical(lipgloss.Left, status, logPanel)
+	return lipgloss.JoinVertical(lipgloss.Left, phasePanel, status, logPanel)
 }
 
 func (m Model) renderLogEntry(entry logEntry) string {
