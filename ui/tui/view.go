@@ -9,6 +9,13 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type cardRenderMode string
+
+const (
+	cardRenderModeWide    cardRenderMode = "wide"
+	cardRenderModeCompact cardRenderMode = "compact"
+)
+
 func (m Model) View() string {
 	content := ""
 	switch m.screen {
@@ -53,18 +60,22 @@ func (m Model) viewNameEntry() string {
 func (m Model) viewTable() string {
 	contentWidth := m.shellContentWidth()
 	header := m.viewHeader(contentWidth)
+	cardMode := cardRenderModeWide
+	if m.shouldStackTable(contentWidth) {
+		cardMode = cardRenderModeCompact
+	}
 
 	sections := []string{header}
 	var body string
 	if m.shouldStackTable(contentWidth) {
-		table := m.viewMainTable(contentWidth)
+		table := m.viewMainTable(contentWidth, cardMode)
 		sidebar := m.viewSidebar(contentWidth)
 		footer := m.viewFooter(contentWidth)
 		body = lipgloss.JoinVertical(lipgloss.Left, table, sidebar, footer)
 	} else {
 		sidebarWidth := m.sidebarWidth(contentWidth)
 		tableWidth := max(1, contentWidth-sidebarWidth-2)
-		table := m.viewMainTable(tableWidth)
+		table := m.viewMainTable(tableWidth, cardMode)
 		footer := m.viewFooter(tableWidth)
 		sidebar := m.viewSidebar(sidebarWidth)
 		leftColumn := lipgloss.JoinVertical(lipgloss.Left, table, footer)
@@ -80,8 +91,8 @@ func (m Model) viewHeader(contentWidth int) string {
 	return m.styles.header.Render(left)
 }
 
-func (m Model) viewMainTable(width int) string {
-	dealer := m.renderHandPanel("Dealer", m.snapshot.Dealer, false, false, 0, width)
+func (m Model) viewMainTable(width int, cardMode cardRenderMode) string {
+	dealer := m.renderHandPanel("Dealer", m.snapshot.Dealer, false, false, 0, width, cardMode)
 	hands := []string{dealer}
 
 	for idx, hand := range m.snapshot.PlayerHands {
@@ -90,13 +101,13 @@ func (m Model) viewMainTable(width int) string {
 			label = fmt.Sprintf("%s · Hand %d", m.snapshot.PlayerName, idx+1)
 		}
 		active := idx == m.snapshot.ActiveHandIndex && m.snapshot.Phase == game.PhasePlayerTurn
-		hands = append(hands, m.renderHandPanel(label, hand, true, active, idx, width))
+		hands = append(hands, m.renderHandPanel(label, hand, true, active, idx, width, cardMode))
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, hands...)
 }
 
-func (m Model) renderHandPanel(title string, hand game.HandState, isPlayer bool, active bool, idx int, width int) string {
+func (m Model) renderHandPanel(title string, hand game.HandState, isPlayer bool, active bool, idx int, width int, cardMode cardRenderMode) string {
 	style := m.styles.inactiveHand
 	if active {
 		style = m.styles.activeHand
@@ -137,29 +148,37 @@ func (m Model) renderHandPanel(title string, hand game.HandState, isPlayer bool,
 
 	return style.Render(lipgloss.JoinVertical(lipgloss.Left,
 		header,
-		m.renderCards(hand.Cards, innerWidth),
+		m.renderCards(hand.Cards, innerWidth, cardMode),
 	))
 }
 
-func (m Model) renderCards(cards []game.CardState, availableWidth int) string {
+func (m Model) renderCards(cards []game.CardState, availableWidth int, cardMode cardRenderMode) string {
 	if len(cards) == 0 {
 		return m.styles.muted.Render("No cards in play")
 	}
 
 	rendered := make([]string, 0, len(cards))
 	for _, card := range cards {
-		rendered = append(rendered, m.renderCard(card))
+		rendered = append(rendered, m.renderCard(card, cardMode))
 	}
 
 	return wrapBlocks(rendered, availableWidth)
 }
 
-func (m Model) renderCard(card game.CardState) string {
-	if !card.FaceUp {
-		return m.styles.cardFaceDown.Render(strings.Join(faceDownCardLines(), "\n"))
-	}
+func (m Model) renderCard(card game.CardState, cardMode cardRenderMode) string {
+	switch cardMode {
+	case cardRenderModeCompact:
+		if !card.FaceUp {
+			return m.styles.cardFaceDown.Copy().Width(12).Render(strings.Join(faceDownCompactCardLines(), "\n"))
+		}
+		return m.styles.card.Copy().Width(12).Render(strings.Join(faceUpCompactCardLines(card), "\n"))
+	default:
+		if !card.FaceUp {
+			return m.styles.cardFaceDown.Render(strings.Join(faceDownCardLines(), "\n"))
+		}
 
-	return m.styles.card.Render(strings.Join(faceUpCardLines(card), "\n"))
+		return m.styles.card.Render(strings.Join(faceUpCardLines(card), "\n"))
+	}
 }
 
 func (m Model) viewSidebar(width int) string {
@@ -456,6 +475,20 @@ func faceUpCardLines(card game.CardState) []string {
 	return lines
 }
 
+func faceUpCompactCardLines(card game.CardState) []string {
+	rank := shortRank(card.Rank)
+	suit := suitSymbol(card.Suit)
+	rows := compactCardInteriorRows(rank, suit)
+	lines := make([]string, 0, len(rows)+3)
+	lines = append(lines, "┌─────────┐")
+	for _, row := range rows {
+		lines = append(lines, "│"+row+"│")
+	}
+	lines = append(lines, "└─────────┘")
+	lines = append(lines, compactCaption(card))
+	return lines
+}
+
 func faceDownCardLines() []string {
 	return []string{
 		"┌───────────┐",
@@ -468,6 +501,106 @@ func faceDownCardLines() []string {
 		"│░░░░░░░░░░░│",
 		"└───────────┘",
 		"Face down",
+	}
+}
+
+func faceDownCompactCardLines() []string {
+	return []string{
+		"┌─────────┐",
+		"│░░░░░░░░░│",
+		"│░▒▒▒▒▒▒▒░│",
+		"│░░░░░░░░░│",
+		"└─────────┘",
+		"Down",
+	}
+}
+
+func compactCardInteriorRows(rank string, suit string) []string {
+	switch rank {
+	case "A":
+		return []string{
+			"A       A",
+			"         ",
+			"    " + suit + "    ",
+		}
+	case "2":
+		return []string{
+			"2 " + suit + "   " + suit + " 2",
+			"         ",
+			"         ",
+		}
+	case "3":
+		return []string{
+			"3 " + suit + "   " + suit + " 3",
+			"    " + suit + "    ",
+			"         ",
+		}
+	case "4":
+		return []string{
+			"4 " + suit + "   " + suit + " 4",
+			"         ",
+			"4 " + suit + "   " + suit + " 4",
+		}
+	case "5":
+		return []string{
+			"5 " + suit + "   " + suit + " 5",
+			"    " + suit + "    ",
+			"5 " + suit + "   " + suit + " 5",
+		}
+	case "6":
+		return []string{
+			"6 " + suit + "   " + suit + " 6",
+			"6 " + suit + "   " + suit + " 6",
+			"6 " + suit + "   " + suit + " 6",
+		}
+	case "7":
+		return []string{
+			"7 " + suit + "   " + suit + " 7",
+			"   " + suit + " " + suit + "   ",
+			"7 " + suit + "   " + suit + " 7",
+		}
+	case "8":
+		return []string{
+			"8 " + suit + "   " + suit + " 8",
+			"8 " + suit + "   " + suit + " 8",
+			"8 " + suit + "   " + suit + " 8",
+		}
+	case "9":
+		return []string{
+			"9 " + suit + " " + suit + " " + suit + " 9",
+			"   " + suit + " " + suit + "   ",
+			"9 " + suit + " " + suit + " " + suit + " 9",
+		}
+	case "10":
+		return []string{
+			"10" + suit + " " + suit + " " + suit + "10",
+			"  " + suit + " " + suit + " " + suit + "  ",
+			"10" + suit + " " + suit + " " + suit + "10",
+		}
+	case "J":
+		return []string{
+			"J " + suit + "   " + suit + " J",
+			"   " + suit + "J" + suit + "   ",
+			"J " + suit + "   " + suit + " J",
+		}
+	case "Q":
+		return []string{
+			"Q " + suit + "   " + suit + " Q",
+			"   (Q)   ",
+			"Q " + suit + "   " + suit + " Q",
+		}
+	case "K":
+		return []string{
+			"K " + suit + "   " + suit + " K",
+			"   <K>   ",
+			"K " + suit + "   " + suit + " K",
+		}
+	default:
+		return []string{
+			padRightVisible(rank, 9),
+			"    " + suit + "    ",
+			padLeftVisible(rank, 9),
+		}
 	}
 }
 
@@ -636,6 +769,21 @@ func shortRank(rank string) string {
 	}
 }
 
+func suitInitial(suit string) string {
+	switch suit {
+	case "Hearts":
+		return "H"
+	case "Diamonds":
+		return "D"
+	case "Clubs":
+		return "C"
+	case "Spades":
+		return "S"
+	default:
+		return "?"
+	}
+}
+
 func suitSymbol(suit string) string {
 	switch suit {
 	case "Hearts":
@@ -649,6 +797,10 @@ func suitSymbol(suit string) string {
 	default:
 		return "?"
 	}
+}
+
+func compactCaption(card game.CardState) string {
+	return fmt.Sprintf("%s + %s [%d]", shortRank(card.Rank), suitInitial(card.Suit), card.Value)
 }
 
 func centerVisible(text string, width int) string {
