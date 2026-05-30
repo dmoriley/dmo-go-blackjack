@@ -1,6 +1,12 @@
-.PHONY: all run test testgame testdeck
+.PHONY: all run test testgame testdeck build clean
 
 all: run
+
+clean:
+	rm -rf ./bin
+
+build: clean
+	go build -o bin/blackjack
 
 run:
 	go run main.go
