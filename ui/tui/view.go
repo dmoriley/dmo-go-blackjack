@@ -282,11 +282,18 @@ func (m Model) renderActions(width int) string {
 			wrapBlocks(actions, width),
 		)
 	case game.PhasePlayerTurn:
-		actions := []string{
-			m.renderAction(m.keys.hit, "hit", m.hasLegalMove(game.MoveHit)),
-			m.renderAction(m.keys.stand, "stand", m.hasLegalMove(game.MoveStand)),
-			m.renderAction(m.keys.double, "double", m.hasLegalMove(game.MoveDouble)),
-			m.renderAction(m.keys.split, "split", m.hasLegalMove(game.MoveSplit)),
+		actions := make([]string, 0, len(m.snapshot.LegalMoves))
+		for _, move := range m.snapshot.LegalMoves {
+			switch move {
+			case game.MoveHit:
+				actions = append(actions, m.renderAction(m.keys.hit, "hit", true))
+			case game.MoveStand:
+				actions = append(actions, m.renderAction(m.keys.stand, "stand", true))
+			case game.MoveDouble:
+				actions = append(actions, m.renderAction(m.keys.double, "double", true))
+			case game.MoveSplit:
+				actions = append(actions, m.renderAction(m.keys.split, "split", true))
+			}
 		}
 		return wrapBlocks(actions, width)
 	case game.PhaseRoundResult:

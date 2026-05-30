@@ -179,17 +179,25 @@ func (m Model) handleKey(key string) (Model, tea.Cmd, bool) {
 		case game.PhasePlayerTurn:
 			switch key {
 			case m.keys.hit:
-				m.applyMove(game.MoveHit, "Hit is not available right now.")
-				return m, nil, true
+				if m.hasLegalMove(game.MoveHit) {
+					m.applyMove(game.MoveHit)
+					return m, nil, true
+				}
 			case m.keys.stand:
-				m.applyMove(game.MoveStand, "Stand is not available right now.")
-				return m, nil, true
+				if m.hasLegalMove(game.MoveStand) {
+					m.applyMove(game.MoveStand)
+					return m, nil, true
+				}
 			case m.keys.double:
-				m.applyMove(game.MoveDouble, "Double is not available for this hand.")
-				return m, nil, true
+				if m.hasLegalMove(game.MoveDouble) {
+					m.applyMove(game.MoveDouble)
+					return m, nil, true
+				}
 			case m.keys.split:
-				m.applyMove(game.MoveSplit, "Split is not available for this hand.")
-				return m, nil, true
+				if m.hasLegalMove(game.MoveSplit) {
+					m.applyMove(game.MoveSplit)
+					return m, nil, true
+				}
 			}
 
 		case game.PhaseRoundResult:
@@ -281,12 +289,7 @@ func (m *Model) placeBet(amount int) {
 	m.applyResult(result)
 }
 
-func (m *Model) applyMove(move game.Move, illegalMessage string) {
-	if !m.hasLegalMove(move) {
-		m.errMsg = illegalMessage
-		return
-	}
-
+func (m *Model) applyMove(move game.Move) {
 	result, err := m.engine.ApplyMove(move)
 	if err != nil {
 		m.errMsg = err.Error()
